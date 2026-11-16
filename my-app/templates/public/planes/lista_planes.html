@@ -1,5 +1,5 @@
 {% extends 'base_cpanel.html' %}
-{% block title %}Planes · GIM{% endblock %}
+{% block title %}Planes · GatutoFit{% endblock %}
 {% macro formulario(id, titulo, accion) %}
 <div class="modal fade" id="{{ id }}" tabindex="-1" aria-labelledby="{{ id }}Titulo" aria-hidden="true">
   <div class="modal-dialog"><div class="modal-content">
@@ -39,7 +39,7 @@
 </select>
 {% endmacro %}
 {% block content %}
-<h1 class="h3 mb-3">Planes</h1>
+<h1 class="h3 mb-3"><i class="bi bi-award-fill me-2" aria-hidden="true"></i>Planes</h1>
 {% if disponible %}
 {% set gestionar = 'planes.gestionar' in session['usuario']['permisos'] %}
 <div class="d-flex flex-wrap align-items-end gap-2 mb-3">

@@ -1,26 +1,211 @@
 <!doctype html>
 <html lang="es">
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Iniciar sesión · GIM</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GatutoFit · Acceso al Sistema</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <style>
+    :root {
+      --carbón: #181c1a;
+      --lima: #a3e635;
+      --muted: #4d5b53;
+    }
+
+    body { color: var(--carbón); background: #f8fafc; }
+
+    .login-layout { display: grid; grid-template-columns: 55% 45%; }
+    .brand-panel {
+      display: flex;
+      align-items: center;
+      padding: clamp(2.5rem, 6vw, 7rem);
+      color: #f8fafc;
+      background:
+        repeating-linear-gradient(135deg, transparent 0 38px, rgb(163 230 53 / .065) 38px 39px, transparent 39px 76px),
+        radial-gradient(ellipse at 94% 85%, rgb(163 230 53 / .13), transparent 55%),
+        linear-gradient(145deg, #121815, #1e2b24);
+    }
+
+    .brand-content { max-width: 38rem; }
+    .brand-logo { width: clamp(14rem, 22vw, 20rem); height: auto; margin-inline-start: -.3rem; }
+    .brand-title {
+      margin: clamp(2rem, 5vh, 4.25rem) 0 1rem;
+      font-size: clamp(2.6rem, 4.5vw, 5.35rem);
+      line-height: 1.01;
+      letter-spacing: -.06em;
+      font-weight: 800;
+    }
+    .brand-title span { color: var(--lima); }
+    .brand-description { max-width: 34rem; color: #d1dcd4; font-size: clamp(1rem, 1.35vw, 1.18rem); }
+    .feature-list { display: flex; flex-wrap: wrap; gap: .65rem; margin: 1.8rem 0 0; padding: 0; list-style: none; }
+    .feature-list li {
+      display: inline-flex;
+      align-items: center;
+      gap: .55rem;
+      padding: .58rem .8rem;
+      border: 1px solid rgb(163 230 53 / .28);
+      border-radius: 2rem;
+      background: rgb(163 230 53 / .06);
+      font-size: .87rem;
+    }
+    .feature-list .bi { color: var(--lima); }
+
+    .access-panel { display: grid; place-items: center; padding: clamp(1.25rem, 4vw, 4rem); }
+    .access-card {
+      width: 100%;
+      max-width: 31rem;
+      padding: clamp(1.4rem, 3vw, 2.5rem);
+      border: 1px solid #e0e8e2;
+      border-radius: 1.5rem;
+      background: #fff;
+      box-shadow: 0 1.15rem 3rem rgb(24 28 26 / .075);
+    }
+
+    .access-title { font-size: clamp(1.6rem, 2.4vw, 2.3rem); font-weight: 800; letter-spacing: -.045em; }
+    .access-muted { color: var(--muted); }
+    .form-label { font-weight: 600; }
+    .input-group-text, .password-toggle { background: #f5f8f6; border-color: #cad6ce; color: #42554a; }
+    .login-input { min-height: 3rem; border-color: #cad6ce; }
+    .login-input:focus { border-color: #507617; box-shadow: 0 0 0 .2rem rgb(80 118 23 / .2); }
+    .password-toggle { min-width: 3rem; }
+    .password-toggle:hover { background: #e6eee8; border-color: #82998a; color: var(--carbón); }
+
+    .login-submit { background: var(--lima); border: 1px solid var(--lima); color: var(--carbón); font-weight: 750; min-height: 3rem; }
+    .login-submit:hover, .login-submit:active { background: #91cf2b; border-color: #91cf2b; color: var(--carbón); }
+    .login-submit:focus-visible, .preset:focus-visible, .password-toggle:focus-visible {
+      outline: 2px solid #456819;
+      outline-offset: 2px;
+    }
+
+    .demo-panel { border-top: 1px solid #e3e9e5; margin-top: 1.6rem; padding-top: 1.25rem; }
+    .preset-list { display: grid; gap: .45rem; }
+    .preset {
+      display: grid;
+      grid-template-columns: 1.1rem minmax(0, 1fr) auto;
+      gap: .65rem;
+      align-items: center;
+      width: 100%;
+      padding: .48rem .65rem;
+      border: 1px solid #e0e8e2;
+      border-radius: .65rem;
+      background: #f8faf8;
+      color: var(--carbón);
+      text-align: start;
+    }
+    .preset:hover { background: #ecf9dc; border-color: #8bb956; }
+    .preset-role { font-weight: 650; }
+    .preset-email { font-size: .75rem; overflow-wrap: anywhere; }
+    .demo-password { color: #31521a; }
+
+    @media (max-width: 991.98px) {
+      .login-layout { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+      .brand-panel { padding: .8rem max(1.25rem, calc((100vw - 31rem) / 2)); }
+      .brand-logo { width: 10.75rem; }
+      .brand-title, .brand-description, .feature-list { display: none; }
+      .access-panel { padding-block: clamp(1.25rem, 5vh, 3rem); }
+    }
+    @media (max-width: 359.98px) {
+      .preset { grid-template-columns: 1.1rem minmax(0, 1fr); }
+      .preset-email { grid-column: 2; }
+    }
+  </style>
 </head>
-<body class="bg-body-tertiary">
-<main class="container py-5"><div class="row justify-content-center"><div class="col-sm-10 col-md-7 col-lg-5">
-  <div class="card shadow-sm"><div class="card-body p-4">
-    <h1 class="h3">GIM</h1><p class="text-secondary">Accede al panel del gimnasio</p>
-    {% for categoria, mensaje in get_flashed_messages(with_categories=true) %}
-      <div class="alert alert-{{ categoria }}" role="alert">{{ mensaje }}</div>
-    {% endfor %}
-    <form method="post" action="{{ url_for('login.login') }}">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <div class="mb-3"><label for="email" class="form-label">Correo electrónico</label>
-        <input id="email" name="email" type="email" class="form-control" maxlength="120" autocomplete="username" required value="{{ request.form.get('email', '') }}"></div>
-      <div class="mb-3"><label for="password" class="form-label">Contraseña</label>
-        <input id="password" name="password" type="password" class="form-control" maxlength="1024" autocomplete="current-password" required></div>
-      <button class="btn btn-primary w-100" type="submit">Iniciar sesión</button>
-    </form>
-  </div></div>
-  <footer class="small text-secondary text-center mt-3">Cuentas de prueba: admin@gym.com · recep@gym.com · entre@gym.com<br>Contraseña: <code>Admin123!</code></footer>
-</div></div></main>
-</body></html>
+<body>
+  <main class="login-layout min-vh-100">
+    <aside class="brand-panel" aria-label="GatutoFit Fitness Center">
+      <div class="brand-content">
+        <img class="brand-logo" src="{{ url_for('static', filename='gatutofit.svg') }}"
+          alt="GatutoFit · Fitness Center" width="244" height="64">
+        <p class="brand-title">Gestión inteligente para tu <span>centro de entrenamiento</span></p>
+        <p class="brand-description">Gestiona socios, registra entradas y sigue el progreso de cada entrenamiento desde un solo lugar.</p>
+        <ul class="feature-list">
+          <li><i class="bi bi-people-fill" aria-hidden="true"></i>Control de Socios y Membresías</li>
+          <li><i class="bi bi-calendar-check-fill" aria-hidden="true"></i>Asistencia en Tiempo Real</li>
+          <li><i class="bi bi-activity" aria-hidden="true"></i>Métricas y Rutinas</li>
+        </ul>
+      </div>
+    </aside>
+
+    <section class="access-panel" aria-labelledby="login-title">
+      <div class="access-card">
+        <h1 id="login-title" class="access-title mb-2">Bienvenido a GatutoFit</h1>
+        <p class="access-muted mb-4">Ingresa tus credenciales para continuar</p>
+        {% for categoria, mensaje in get_flashed_messages(with_categories=true) %}
+          <div class="alert alert-{{ categoria }}" role="alert">{{ mensaje }}</div>
+        {% endfor %}
+        <form method="POST" action="{{ url_for('login.login') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="mb-3">
+            <label for="email" class="form-label">Correo electrónico</label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-envelope" aria-hidden="true"></i></span>
+              <input id="email" name="email" type="email" class="form-control login-input" maxlength="120"
+                autocomplete="username" required value="{{ request.form.get('email', '') }}">
+            </div>
+          </div>
+          <div class="mb-4">
+            <label for="password" class="form-label">Contraseña</label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-lock" aria-hidden="true"></i></span>
+              <input id="password" name="password" type="password" class="form-control login-input" maxlength="1024"
+                autocomplete="current-password" required>
+              <button type="button" class="btn password-toggle" id="password-toggle" aria-controls="password"
+                aria-label="Mostrar contraseña" title="Mostrar contraseña">
+                <i class="bi bi-eye" aria-hidden="true"></i>
+              </button>
+            </div>
+          </div>
+          <button class="btn login-submit w-100" type="submit">Iniciar sesión<i class="bi bi-arrow-right ms-2" aria-hidden="true"></i></button>
+        </form>
+        <section class="demo-panel" aria-labelledby="demo-title">
+          <h2 id="demo-title" class="h6 mb-1">Cuentas de prueba</h2>
+          <p class="small access-muted mb-2">Contraseña compartida <code class="demo-password" id="demo-password">Admin123!</code></p>
+          <div class="preset-list">
+            {% for rol, correo, icono in [
+              ('Administrador', 'admin@gym.com', 'shield-check'),
+              ('Recepción', 'recep@gym.com', 'person-badge'),
+              ('Entrenador', 'entre@gym.com', 'activity')
+            ] %}
+            <button class="preset" type="button" data-demo-email="{{ correo }}">
+              <i class="bi bi-{{ icono }}" aria-hidden="true"></i>
+              <span class="preset-role">{{ rol }}</span>
+              <span class="preset-email access-muted">{{ correo }}</span>
+            </button>
+            {% endfor %}
+          </div>
+          <p id="demo-status" class="visually-hidden" role="status"></p>
+        </section>
+      </div>
+    </section>
+  </main>
+  <script>
+    (() => {
+      const email = document.getElementById('email');
+      const password = document.getElementById('password');
+      const toggle = document.getElementById('password-toggle');
+      const eye = toggle.querySelector('i');
+      const status = document.getElementById('demo-status');
+
+      function setPasswordVisible(visible) {
+        password.type = visible ? 'text' : 'password';
+        eye.classList.toggle('bi-eye', !visible);
+        eye.classList.toggle('bi-eye-slash', visible);
+        const label = visible ? 'Ocultar contraseña' : 'Mostrar contraseña';
+        toggle.setAttribute('aria-label', label);
+        toggle.title = label;
+      }
+
+      toggle.addEventListener('click', () => setPasswordVisible(password.type === 'password'));
+      for (const button of document.querySelectorAll('[data-demo-email]')) {
+        button.addEventListener('click', () => {
+          email.value = button.dataset.demoEmail;
+          password.value = document.getElementById('demo-password').textContent;
+          setPasswordVisible(false);
+          status.textContent = 'Credenciales completadas para ' + email.value;
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

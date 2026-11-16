@@ -1,5 +1,5 @@
 {% extends 'base_cpanel.html' %}
-{% block title %}Dashboard ejecutivo · GIM PRO{% endblock %}
+{% block title %}Panel General · GatutoFit{% endblock %}
 {% macro dinero(valor) %}${{ '{:,.2f}'.format(valor) }}{% endmacro %}
 {% block content %}
 <style>
@@ -18,10 +18,11 @@
 <div class="gim-dashboard">
   <header class="gim-hero text-white p-4 p-xl-5 rounded-4 mb-4 d-flex flex-wrap align-items-center justify-content-between gap-3">
     <div>
-      <h1 class="display-6 fw-bold mb-2">Dashboard ejecutivo</h1>
+      <h1 class="display-6 fw-bold mb-2"><i class="bi bi-speedometer2 me-2" aria-hidden="true"></i>Panel General · GatutoFit</h1>
+      <p class="mb-2">Indicadores operativos, ingresos y asistencia del gimnasio</p>
       {% if resumen %}<p class="mb-0 text-white-50">{{ filtros.fecha_inicio }} al {{ filtros.fecha_fin }} · {{ 'Todas las categorías' if not filtros.categoria else ('Básico' if filtros.categoria == 'Basico' else filtros.categoria) }}</p>{% endif %}
     </div>
-    <img src="{{ url_for('static', filename='gim-pro.svg') }}" alt="GIM PRO · Fitness Center" width="220" height="58">
+    <img src="{{ url_for('static', filename='gatutofit.svg') }}" alt="GatutoFit · Fitness Center" width="220" height="58">
   </header>
 
   <form method="get" action="{{ url_for('home.dashboard') }}" class="gim-surface gim-filter p-3 mb-4 d-flex flex-wrap align-items-end gap-3">
@@ -53,11 +54,13 @@
   </form>
 
   {% if resumen %}
+  {% set iconos_kpi = {'socios_activos': 'people-fill', 'membresias_vigentes': 'card-checklist',
+    'ingresos_periodo': 'cash-stack', 'asistencias_hoy': 'calendar-check-fill', 'promedio_estancia': 'stopwatch'} %}
   <section class="row row-cols-1 row-cols-sm-2 row-cols-xl-5 g-3 mb-4" aria-label="Indicadores principales">
     {% for clave, titulo, alcance, unidad in indicadores %}
     {% set valor = resumen.kpis[clave] %}
     <div class="col"><div class="gim-surface gim-kpi p-3 h-100 d-flex flex-column">
-      <h2 class="h6 mb-2">{{ titulo }}</h2>
+      <h2 class="h6 mb-2"><i class="bi bi-{{ iconos_kpi[clave] }} me-2" aria-hidden="true"></i>{{ titulo }}</h2>
       <strong class="fs-4 mb-1 mt-auto">
         {% if unidad == 'USD' %}{{ dinero(valor) }}{% elif unidad == 'min' %}{{ '{:,.1f}'.format(valor) }} <small class="fs-6">min</small>{% else %}{{ '{:,}'.format(valor) }}{% endif %}
       </strong>
@@ -93,14 +96,14 @@
   {% endif %}
 
   <div class="row g-3 mb-4">
-    {% for id, titulo, nota in [
-      ('horarios', 'Horas de visita del socio' if resumen.socio else 'Horarios de mayor visita', 'Entradas por hora local de Ecuador'),
-      ('generos', 'Asistencia por género', 'Entradas en el periodo'),
-      ('planes', 'Planes con mayores ventas', 'Hasta 10 planes por cantidad vendida'),
-      ('mensual', 'Nuevos clientes vs. pérdidas por mes', 'Altas y membresías vencidas o canceladas por mes de fin')
+    {% for id, icono, titulo, nota in [
+      ('horarios', 'clock-history', 'Horas de visita del socio' if resumen.socio else 'Horarios de mayor visita', 'Entradas por hora local de Ecuador'),
+      ('generos', 'pie-chart-fill', 'Asistencia por género', 'Entradas en el periodo'),
+      ('planes', 'bar-chart-fill', 'Planes con mayores ventas', 'Hasta 10 planes por cantidad vendida'),
+      ('mensual', 'graph-up', 'Nuevos clientes vs. pérdidas por mes', 'Altas y membresías vencidas o canceladas por mes de fin')
     ] %}
     <section class="col-12 col-xl-6"><div class="gim-surface p-3 p-lg-4 h-100">
-      <h2 id="{{ id }}Titulo" class="h5 mb-1">{{ titulo }}</h2>
+      <h2 id="{{ id }}Titulo" class="h5 mb-1"><i class="bi bi-{{ icono }} me-2" aria-hidden="true"></i>{{ titulo }}</h2>
       <p id="{{ id }}Nota" class="small gim-muted mb-3">{{ nota }}</p>
       <div class="gim-chart">
         <canvas id="{{ id }}Chart" role="img" aria-labelledby="{{ id }}Titulo" aria-describedby="{{ id }}Nota"></canvas>
@@ -112,7 +115,7 @@
 
   <div class="row g-3 mb-4">
     <section class="col-12 col-xl-6"><div class="gim-surface p-3 p-lg-4 h-100">
-      <h2 id="metodosTitulo" class="h5">Resumen de pagos por método</h2>
+      <h2 id="metodosTitulo" class="h5"><i class="bi bi-wallet2 me-2" aria-hidden="true"></i>Resumen de pagos por método</h2>
       <p class="mb-2">Total recaudado en el periodo <strong class="fs-5">{{ dinero(resumen.kpis.ingresos_periodo) }}</strong></p>
       <div class="gim-chart">
         <canvas id="metodosChart" role="img" aria-labelledby="metodosTitulo"></canvas>

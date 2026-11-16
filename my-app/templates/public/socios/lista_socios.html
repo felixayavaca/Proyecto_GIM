@@ -1,5 +1,5 @@
 {% extends 'base_cpanel.html' %}
-{% block title %}Socios y Pagos · GIM{% endblock %}
+{% block title %}Socios y Pagos · GatutoFit{% endblock %}
 {% macro formulario_socio(id, titulo, accion) %}
 <div class="modal fade" id="{{ id }}" tabindex="-1" aria-labelledby="{{ id }}Titulo" aria-hidden="true">
   <div class="modal-dialog modal-lg"><div class="modal-content">
@@ -79,7 +79,7 @@
 </div>
 {% endmacro %}
 {% block content %}
-<h1 class="h3 mb-3">Socios y Pagos</h1>
+<h1 class="h3 mb-3"><i class="bi bi-people-fill me-2" aria-hidden="true"></i>Socios y Pagos</h1>
 {% if disponible %}
 <div class="d-flex flex-wrap align-items-end gap-2 mb-3">
   {% if 'reportes.exportar' in session['usuario']['permisos'] %}

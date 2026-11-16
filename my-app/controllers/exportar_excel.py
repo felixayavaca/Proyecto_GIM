@@ -9,6 +9,12 @@ from openpyxl.utils import get_column_letter
 from routers.router_login import requiere_permiso
 
 
+def nombre_descarga_excel(nombre):
+    if not nombre.lower().endswith('.xlsx'):
+        nombre += '.xlsx'
+    return 'GatutoFit_' + nombre.removeprefix('GatutoFit_')
+
+
 @requiere_permiso('reportes.exportar')
 def generar_excel(nombre_archivo, encabezados, filas):
     """Genera una descarga desde una vista Flask; protege también la vista si consulta datos."""
@@ -31,15 +37,12 @@ def generar_excel(nombre_archivo, encabezados, filas):
     for columna, ancho in anchos.items():
         hoja.column_dimensions[get_column_letter(columna)].width = min(255, max(10, ancho + 2))
 
-    if not nombre_archivo.lower().endswith('.xlsx'):
-        nombre_archivo += '.xlsx'
-
     contenido = BytesIO()
     libro.save(contenido)
     contenido.seek(0)
     return send_file(
         contenido,
-        download_name=nombre_archivo,
+        download_name=nombre_descarga_excel(nombre_archivo),
         as_attachment=True,
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     )

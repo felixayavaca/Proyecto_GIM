@@ -1,5 +1,5 @@
 {% extends 'base_cpanel.html' %}
-{% block title %}Instructores · GIM{% endblock %}
+{% block title %}Instructores · GatutoFit{% endblock %}
 
 {% macro modal_formulario(id, titulo, accion, usuarios) %}
 <div class="modal fade" id="{{ id }}" tabindex="-1" aria-labelledby="{{ id }}Titulo" aria-hidden="true">
@@ -74,7 +74,7 @@
 {% endmacro %}
 
 {% block content %}
-<h1 class="h3 mb-3">Instructores</h1>
+<h1 class="h3 mb-3"><i class="bi bi-person-badge-fill me-2" aria-hidden="true"></i>Instructores</h1>
 {% if disponible %}
 {% set campos_ficha = [
   ('id', 'ID'), ('cedula', 'Cédula'), ('nombre', 'Nombre'), ('apellido', 'Apellido'),

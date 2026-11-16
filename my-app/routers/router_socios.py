@@ -121,4 +121,4 @@ def exportar():
             for pago in pagos.get(socio['id'], () if filtros_pagos else ({},)):
                 yield base + tuple(pago.get(campo) for campo in campos_pago)
 
-    return generar_excel('socios_membresias.xlsx', encabezados, filas())
+    return generar_excel('socios.xlsx', encabezados, filas())

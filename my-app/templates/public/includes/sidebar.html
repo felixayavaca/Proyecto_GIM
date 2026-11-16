@@ -1,16 +1,18 @@
 {% set permisos = session.get('usuario', {}).get('permisos', []) %}
 <aside id="panelSidebar" class="panel-sidebar bg-body-tertiary">
 <nav class="nav nav-pills flex-column gap-1" aria-label="Menú principal">
-  {% for ruta, etiqueta, permitidos in [
-    ('/dashboard', 'Dashboard', ['reportes.ver']),
-    ('/socios', 'Socios y Pagos', ['socios.ver']),
-    ('/instructores', 'Instructores', ['instructores.gestionar', 'socios.ver']),
-    ('/entrenadores', 'Entrenamiento y Rutinas', ['rutinas.gestionar', 'valoraciones.gestionar', 'socios.ver']),
-    ('/planes', 'Planes', ['planes.ver']),
-    ('/asistencias', 'Asistencias', ['asistencias.ver', 'asistencias.registrar'])
+  {% for ruta, etiqueta, icono, permitidos in [
+    ('/dashboard', 'Panel General', 'speedometer2', ['reportes.ver']),
+    ('/socios', 'Socios y Pagos', 'people-fill', ['socios.ver']),
+    ('/instructores', 'Instructores', 'person-badge-fill', ['instructores.gestionar', 'socios.ver']),
+    ('/entrenadores', 'Entrenamiento y Rutinas', 'activity', ['rutinas.gestionar', 'valoraciones.gestionar', 'socios.ver']),
+    ('/planes', 'Planes', 'award-fill', ['planes.ver']),
+    ('/asistencias', 'Asistencias', 'calendar-check-fill', ['asistencias.ver', 'asistencias.registrar'])
   ] %}
     {% if permitidos | select('in', permisos) | list %}
-      <a class="nav-link {% if request.path == ruta %}active{% endif %}" href="{{ ruta }}" {% if request.path == ruta %}aria-current="page"{% endif %}>{{ etiqueta }}</a>
+      <a class="nav-link d-flex align-items-start {% if request.path == ruta %}active{% endif %}" href="{{ ruta }}" {% if request.path == ruta %}aria-current="page"{% endif %}>
+        <i class="bi bi-{{ icono }} me-2" aria-hidden="true"></i><span>{{ etiqueta }}</span>
+      </a>
     {% endif %}
   {% endfor %}
 </nav></aside>

@@ -6,6 +6,7 @@ from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
 from openpyxl.styles import Font
 from openpyxl.utils import get_column_letter
 
+from controllers.exportar_excel import nombre_descarga_excel
 from controllers.funciones_entrenadores import (
     DIAS, ErrorEntrenadores, cambiar_estado_rutina, crear_rutina, crear_valoracion,
     listar_instructores_entrenamiento, listar_rutinas, listar_socios_entrenamiento, listar_valoraciones,
@@ -164,5 +165,5 @@ def exportar():
     contenido = BytesIO()
     libro.save(contenido)
     contenido.seek(0)
-    return send_file(contenido, as_attachment=True, download_name='rutinas_valoraciones.xlsx',
+    return send_file(contenido, as_attachment=True, download_name=nombre_descarga_excel('rutinas_valoraciones'),
                      mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')

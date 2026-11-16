@@ -1,5 +1,5 @@
 {% extends 'base_cpanel.html' %}
-{% block title %}Entrenamiento y Rutinas · GIM{% endblock %}
+{% block title %}Entrenamiento y Rutinas · GatutoFit{% endblock %}
 
 {% macro selector(formulario, campo, etiqueta, opciones) %}
 <select form="{{ formulario }}" name="{{ campo }}" class="form-select form-select-sm"
@@ -54,7 +54,7 @@
 {% endmacro %}
 
 {% block content %}
-<h1 class="h3 mb-3">Entrenamiento y Rutinas</h1>
+<h1 class="h3 mb-3"><i class="bi bi-activity me-2" aria-hidden="true"></i>Entrenamiento y Rutinas</h1>
 {% if disponible %}
 {% set permisos = session['usuario']['permisos'] %}
 {% set gestionar_rutinas = 'rutinas.gestionar' in permisos %}

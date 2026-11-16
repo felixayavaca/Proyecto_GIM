@@ -85,5 +85,5 @@ def exportar():
         for fila in datos['instructores']:
             yield ('Carga por instructor', fila['instructor'], fila['socios'])
 
-    return generar_excel('resumen_gerencial_gim.xlsx',
+    return generar_excel('resumen_gerencial.xlsx',
                          ('Sección', 'Concepto', 'Dato 1', 'Dato 2', 'Dato 3', 'Dato 4'), filas())

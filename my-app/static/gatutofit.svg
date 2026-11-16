@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 244 64" role="img" aria-labelledby="marca">
+  <title id="marca">GatutoFit · Fitness Center</title>
+  <rect x="4" y="4" width="56" height="56" rx="14" fill="#bef264"/>
+  <g fill="none" stroke="#15241c" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m23 29 1-10 6 5h4l6-5 1 10q0 8-9 8t-9-8Z" stroke-width="2.6"/>
+    <path d="M27.5 29.5h.1m8.8 0h.1" stroke-width="2.5"/>
+    <path d="M17 43h30M19 38v10m4-12v14m18-14v14m4-12v10" stroke-width="2.8"/>
+  </g>
+  <text x="71" y="33" fill="#fff" font-family="system-ui,sans-serif" font-size="30" font-weight="800">Gatuto<tspan fill="#bef264">Fit</tspan></text>
+  <text x="74" y="50" fill="#cbd5e1" font-family="system-ui,sans-serif" font-size="10" font-weight="600" letter-spacing="2.4">FITNESS CENTER</text>
+</svg>
