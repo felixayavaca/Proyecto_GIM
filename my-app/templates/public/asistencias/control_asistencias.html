@@ -1,0 +1,50 @@
+{% extends 'base_cpanel.html' %}
+{% block title %}Asistencias · GIM{% endblock %}
+{% block content %}
+{% set registrar = 'asistencias.registrar' in session['usuario']['permisos'] %}
+<h1 class="h3 mb-3">Control de asistencias</h1>
+{% if disponible %}
+{% if registrar %}
+<section class="card mb-4"><div class="card-body">
+  <h2 class="h5">Registrar entrada</h2>
+  <form method="post" action="{{ url_for('asistencias.registrar') }}" class="row g-3 align-items-end">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="col-12 col-md-9"><label class="form-label" for="socio_id">Socio</label>
+      <select id="socio_id" name="socio_id" class="form-select" required {% if not socios %}disabled{% endif %}>
+        <option value="">Selecciona un socio</option>
+        {% for socio in socios %}<option value="{{ socio.id }}">{{ socio.cedula }} · {{ socio.nombre }} {{ socio.apellido }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-12 col-md-3"><button type="submit" class="btn btn-primary w-100" {% if not socios %}disabled{% endif %}>Marcar Entrada</button></div>
+  </form>
+  {% if not socios %}<p class="text-secondary mt-2 mb-0">No hay socios registrados.</p>{% endif %}
+  <p class="small text-secondary mt-2 mb-0">Las entradas sin membresía activa también se registran y muestran una advertencia.</p>
+</div></section>
+{% endif %}
+<h2 class="h5">Últimas 100 entradas</h2>
+<div class="table-responsive"><table class="table table-striped align-middle">
+  <thead><tr><th scope="col">Fecha y hora</th><th scope="col">Cédula</th><th scope="col">Socio</th><th scope="col">Registrado por</th>{% if registrar %}<th scope="col">Acciones</th>{% endif %}</tr></thead>
+  <tbody>
+    {% for asistencia in asistencias %}
+    <tr><td>{{ asistencia.fecha_hora }}</td><td>{{ asistencia.cedula }}</td><td>{{ asistencia.socio_nombre }}</td><td>{{ asistencia.registrado_por or 'Usuario no disponible' }}</td>
+      {% if registrar %}<td><button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#eliminarAsistencia" data-url="{{ url_for('asistencias.eliminar', asistencia_id=asistencia.id) }}" data-detalle="{{ asistencia.socio_nombre }} · {{ asistencia.fecha_hora }}">Eliminar</button></td>{% endif %}
+    </tr>
+    {% else %}<tr><td colspan="{{ 5 if registrar else 4 }}" class="text-center text-secondary">No hay asistencias registradas.</td></tr>{% endfor %}
+  </tbody>
+</table></div>
+{% if registrar %}
+<div class="modal fade" id="eliminarAsistencia" tabindex="-1" aria-labelledby="eliminarTitulo" aria-hidden="true"><div class="modal-dialog"><div class="modal-content">
+<form method="post">
+  <div class="modal-header"><h2 class="modal-title fs-5" id="eliminarTitulo">Eliminar asistencia</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button></div>
+  <div class="modal-body"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><p>¿Eliminar la entrada de <strong id="detalleEliminar"></strong>?</p><p class="text-danger">Esta acción es permanente.</p></div>
+  <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-danger">Eliminar</button></div>
+</form></div></div></div>
+<script>
+document.getElementById('eliminarAsistencia').addEventListener('show.bs.modal', function (event) {
+  this.querySelector('form').action = event.relatedTarget.dataset.url;
+  document.getElementById('detalleEliminar').textContent = event.relatedTarget.dataset.detalle;
+});
+</script>
+{% endif %}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,158 @@
+{% extends 'base_cpanel.html' %}
+{% block title %}Instructores · GIM{% endblock %}
+
+{% macro modal_formulario(id, titulo, accion, usuarios) %}
+<div class="modal fade" id="{{ id }}" tabindex="-1" aria-labelledby="{{ id }}Titulo" aria-hidden="true">
+  <div class="modal-dialog"><div class="modal-content">
+    <form method="post" action="{{ accion }}">
+      <div class="modal-header">
+        <h2 class="modal-title fs-5" id="{{ id }}Titulo">{{ titulo }}</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="row g-3">
+          {% for campo, etiqueta, tipo, maximo, patron, obligatorio in [
+            ('cedula', 'Cédula', 'text', 10, '[0-9]{10}', true),
+            ('telefono', 'Teléfono', 'tel', 10, '09[0-9]{8}', false),
+            ('nombre', 'Nombre', 'text', 60, '', true),
+            ('apellido', 'Apellido', 'text', 60, '', true),
+            ('especialidad', 'Especialidad', 'text', 80, '', true),
+            ('fecha_contratacion', 'Fecha de contratación', 'date', 0, '', true)
+          ] %}
+            <div class="col-sm-6">
+              <label class="form-label" for="{{ id }}_{{ campo }}">{{ etiqueta }}</label>
+              <input class="form-control" id="{{ id }}_{{ campo }}" name="{{ campo }}" type="{{ tipo }}"
+                {% if maximo %}maxlength="{{ maximo }}"{% endif %}
+                {% if patron %}pattern="{{ patron }}" inputmode="numeric"{% endif %}
+                {% if tipo == 'date' %}min="1000-01-01" max="9999-12-31"{% endif %}
+                {% if obligatorio %}required{% endif %}>
+            </div>
+          {% endfor %}
+          <div class="col-sm-8">
+            <label class="form-label" for="{{ id }}Usuario">Cuenta vinculada (opcional)</label>
+            <select class="form-select" name="usuario_id" id="{{ id }}Usuario">
+              <option value="">Sin cuenta</option>
+              {% for usuario in usuarios %}
+                <option value="{{ usuario.id }}">{{ usuario.nombre }} · {{ usuario.email }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-sm-4">
+            <label class="form-label" for="{{ id }}Estado">Estado</label>
+            <select class="form-select" name="activo" id="{{ id }}Estado">
+              <option value="1">Activo</option><option value="0">Inactivo</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Guardar</button>
+      </div>
+    </form>
+  </div></div>
+</div>
+{% endmacro %}
+
+{% block content %}
+<h1 class="h3 mb-3">Instructores</h1>
+{% if disponible %}
+{% set campos_ficha = [
+  ('id', 'ID'), ('cedula', 'Cédula'), ('nombre', 'Nombre'), ('apellido', 'Apellido'),
+  ('telefono', 'Teléfono'), ('especialidad', 'Especialidad'),
+  ('fecha_contratacion', 'Fecha de contratación'), ('estado_texto', 'Estado'),
+  ('usuario_email', 'Cuenta vinculada'), ('socios_asignados', 'Socios asignados')
+] %}
+<div class="d-flex flex-wrap align-items-end gap-2 mb-3">
+  <form method="get" action="{{ url_for('instructores.lista') }}" class="d-flex flex-wrap align-items-end gap-2">
+    <div><label for="q" class="form-label">Nombre, cédula o especialidad</label>
+      <input id="q" name="q" type="search" class="form-control" value="{{ q }}"></div>
+    <div><label for="estado" class="form-label">Estado</label>
+      <select id="estado" name="estado" class="form-select">
+        <option value="">Todos</option>
+        <option value="1" {% if estado == '1' %}selected{% endif %}>Activo</option>
+        <option value="0" {% if estado == '0' %}selected{% endif %}>Inactivo</option>
+      </select></div>
+    <button class="btn btn-outline-primary">Filtrar</button>
+  </form>
+  {% if 'reportes.exportar' in session['usuario']['permisos'] %}
+    <a class="btn btn-outline-success" href="{{ url_for('instructores.exportar', q=q, estado=estado) }}">Exportar Excel</a>
+  {% endif %}
+  {% if gestionar %}
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#nuevoInstructor">Nuevo instructor</button>
+  {% endif %}
+</div>
+<div class="table-responsive">
+  <table class="table table-striped align-middle">
+    <thead><tr><th>Cédula</th><th>Instructor</th><th>Especialidad</th><th>Estado</th><th>Socios asignados</th><th>Acciones</th></tr></thead>
+    <tbody>
+      {% for i in instructores %}
+      {% set estado_texto = 'Activo' if i.activo else 'Inactivo' %}
+      {% set ficha = dict(i, fecha_contratacion=i.fecha_contratacion|string, estado_texto=estado_texto) %}
+      <tr>
+        <td>{{ i.cedula }}</td><td>{{ i.nombre }} {{ i.apellido }}</td><td>{{ i.especialidad }}</td>
+        <td><span class="badge text-bg-{{ 'success' if i.activo else 'secondary' }}">{{ estado_texto }}</span></td>
+        <td>{{ i.socios_asignados }}</td>
+        <td><div class="d-flex flex-wrap gap-2">
+          <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#fichaInstructor" data-instructor="{{ ficha|tojson|forceescape }}">Ver ficha</button>
+          {% if gestionar %}
+          <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editarInstructor" data-instructor="{{ ficha|tojson|forceescape }}"
+            data-url="{{ url_for('instructores.editar', instructor_id=i.id, q=q, estado=estado) }}">Editar</button>
+          <form method="post" action="{{ url_for('instructores.estado', instructor_id=i.id, q=q, estado=estado) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="activo" value="{{ 0 if i.activo else 1 }}">
+            <button type="submit" class="btn btn-sm btn-outline-{{ 'danger' if i.activo else 'success' }}">{{ 'Desactivar' if i.activo else 'Activar' }}</button>
+          </form>
+          {% endif %}
+        </div></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="text-center text-secondary">No se encontraron instructores.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<div class="modal fade" id="fichaInstructor" tabindex="-1" aria-labelledby="fichaTitulo" aria-hidden="true">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header">
+      <h2 class="modal-title fs-5" id="fichaTitulo">Ficha del instructor</h2>
+      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+    </div>
+    <dl class="modal-body row mb-0">
+      {% for campo, etiqueta in campos_ficha %}
+      <dt class="col-sm-5">{{ etiqueta }}</dt><dd class="col-sm-7" data-campo="{{ campo }}"></dd>
+      {% endfor %}
+    </dl>
+  </div></div>
+</div>
+{% if gestionar %}
+  {{ modal_formulario('nuevoInstructor', 'Nuevo instructor', url_for('instructores.crear', q=q, estado=estado), usuarios) }}
+  {{ modal_formulario('editarInstructor', 'Editar instructor', '', usuarios) }}
+{% endif %}
+<script>
+  document.getElementById('fichaInstructor').addEventListener('show.bs.modal', function (evento) {
+    const instructor = JSON.parse(evento.relatedTarget.dataset.instructor);
+    this.querySelectorAll('[data-campo]').forEach(campo => {
+      campo.textContent = instructor[campo.dataset.campo] ?? '—';
+    });
+  });
+  document.getElementById('editarInstructor')?.addEventListener('show.bs.modal', function (evento) {
+    const boton = evento.relatedTarget;
+    const instructor = JSON.parse(boton.dataset.instructor);
+    const formulario = this.querySelector('form');
+    formulario.action = boton.dataset.url;
+    const cuenta = formulario.elements.namedItem('usuario_id');
+    cuenta.querySelector('[data-vinculado]')?.remove();
+    if (instructor.usuario_id !== null) {
+      const opcion = new Option(instructor.usuario_email, instructor.usuario_id);
+      opcion.dataset.vinculado = '';
+      cuenta.add(opcion);
+    }
+    for (const campo of ['usuario_id', 'cedula', 'nombre', 'apellido', 'telefono', 'especialidad', 'fecha_contratacion', 'activo']) {
+      formulario.elements.namedItem(campo).value = instructor[campo] ?? '';
+    }
+  });
+</script>
+{% endif %}
+{% endblock %}

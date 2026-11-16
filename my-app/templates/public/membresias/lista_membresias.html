@@ -1,0 +1,65 @@
+{% extends 'base_cpanel.html' %}
+{% block title %}Membresías · GIM{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">Membresías y planes</h1>
+{% if disponible %}
+<div class="d-flex gap-2 mb-3 flex-wrap">
+  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#asignarMembresia" {% if not socios or not planes %}disabled{% endif %}>Asignar membresía</button>
+  {% if 'planes.gestionar' in session['usuario']['permisos'] %}<button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#nuevoPlan">Nuevo plan</button>{% endif %}
+</div>
+{% if not socios or not planes %}<p class="text-secondary">Para asignar una membresía necesitas al menos un socio y un plan.</p>{% endif %}
+<div class="table-responsive"><table class="table table-striped align-middle">
+<thead><tr><th>ID</th><th>Socio</th><th>Cédula</th><th>Plan</th><th>Inicio</th><th>Fin</th><th>Precio pagado</th><th>Estado</th><th>Días restantes</th><th>Acciones</th></tr></thead>
+<tbody>
+{% for m in membresias %}
+<tr><td>{{ m.id }}</td><td>{{ m.socio_nombre }}</td><td>{{ m.cedula }}</td><td>{{ m.plan_nombre }}</td><td>{{ m.fecha_inicio }}</td><td>{{ m.fecha_fin }}</td><td>${{ '%.2f'|format(m.precio_pagado) }}</td>
+<td><span class="badge text-bg-{{ {'activa': 'success', 'vencida': 'danger', 'cancelada': 'secondary'}[m.estado] }}">{{ m.estado }}</span></td><td>{{ m.dias_restantes }}</td>
+<td><div class="d-flex gap-2 flex-wrap">
+  <form method="post" action="{{ url_for('membresias.estado', membresia_id=m.id) }}" class="d-flex gap-1">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <select name="estado" class="form-select form-select-sm" aria-label="Estado de membresía {{ m.id }}">
+      {% for estado in ['activa', 'vencida', 'cancelada'] %}<option value="{{ estado }}" {% if estado == m.estado %}selected{% endif %}>{{ estado }}</option>{% endfor %}
+    </select><button class="btn btn-sm btn-outline-primary" type="submit">Guardar</button>
+  </form>
+  <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#eliminarMembresia" data-url="{{ url_for('membresias.eliminar', membresia_id=m.id) }}" data-nombre="{{ m.socio_nombre }} · {{ m.plan_nombre }}">Eliminar</button>
+</div></td></tr>
+{% else %}<tr><td colspan="10" class="text-center text-secondary">No hay membresías registradas.</td></tr>{% endfor %}
+</tbody></table></div>
+<h2 class="h5 mt-4">Planes disponibles</h2>
+<div class="table-responsive"><table class="table table-sm"><thead><tr><th>Plan</th><th>Precio</th><th>Duración (días)</th></tr></thead><tbody>
+{% for plan in planes %}<tr><td>{{ plan.nombre }}</td><td>${{ '%.2f'|format(plan.precio) }}</td><td>{{ plan.duracion_dias }}</td></tr>{% else %}<tr><td colspan="3">No hay planes registrados.</td></tr>{% endfor %}
+</tbody></table></div>
+<div class="modal fade" id="asignarMembresia" tabindex="-1" aria-labelledby="asignarTitulo" aria-hidden="true"><div class="modal-dialog"><div class="modal-content">
+<form method="post" action="{{ url_for('membresias.crear') }}">
+  <div class="modal-header"><h2 class="modal-title fs-5" id="asignarTitulo">Asignar membresía</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button></div>
+  <div class="modal-body"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="mb-3"><label for="socio_id" class="form-label">Socio</label><select id="socio_id" name="socio_id" class="form-select" required><option value="">Selecciona un socio</option>{% for socio in socios %}<option value="{{ socio.id }}">{{ socio.cedula }} · {{ socio.nombre }} {{ socio.apellido }}</option>{% endfor %}</select></div>
+    <div class="mb-3"><label for="plan_id" class="form-label">Plan</label><select id="plan_id" name="plan_id" class="form-select" required><option value="">Selecciona un plan</option>{% for plan in planes %}<option value="{{ plan.id }}">{{ plan.nombre }} · ${{ '%.2f'|format(plan.precio) }} · {{ plan.duracion_dias }} días</option>{% endfor %}</select></div>
+    <div class="mb-3"><label for="fecha_inicio" class="form-label">Fecha de inicio</label><input id="fecha_inicio" name="fecha_inicio" type="date" min="1000-01-01" max="9999-12-31" class="form-control" required></div>
+    <p class="small text-secondary">El precio pagado será el precio del plan. La fecha de fin se calcula sumando su duración a la fecha de inicio.</p>
+  </div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-primary">Asignar</button></div>
+</form></div></div></div>
+{% if 'planes.gestionar' in session['usuario']['permisos'] %}
+<div class="modal fade" id="nuevoPlan" tabindex="-1" aria-labelledby="planTitulo" aria-hidden="true"><div class="modal-dialog"><div class="modal-content">
+<form method="post" action="{{ url_for('membresias.nuevo_plan') }}">
+  <div class="modal-header"><h2 class="modal-title fs-5" id="planTitulo">Nuevo plan</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button></div>
+  <div class="modal-body"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="mb-3"><label for="nombrePlan" class="form-label">Nombre</label><input id="nombrePlan" name="nombre" maxlength="50" class="form-control" required></div>
+    <div class="mb-3"><label for="precio" class="form-label">Precio</label><input id="precio" name="precio" type="number" min="0" max="999999.99" step="0.01" class="form-control" required></div>
+    <div class="mb-3"><label for="duracion" class="form-label">Duración en días</label><input id="duracion" name="duracion_dias" type="number" min="1" max="2147483647" step="1" class="form-control" required></div>
+  </div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-primary">Crear plan</button></div>
+</form></div></div></div>
+{% endif %}
+<div class="modal fade" id="eliminarMembresia" tabindex="-1" aria-labelledby="eliminarTitulo" aria-hidden="true"><div class="modal-dialog"><div class="modal-content"><form method="post">
+<div class="modal-header"><h2 class="modal-title fs-5" id="eliminarTitulo">Eliminar membresía</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button></div>
+<div class="modal-body"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><p>¿Eliminar la membresía de <strong id="nombreEliminar"></strong>?</p><p class="text-danger">Esta acción es permanente.</p></div>
+<div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-danger">Eliminar</button></div>
+</form></div></div></div>
+<script>
+document.getElementById('eliminarMembresia').addEventListener('show.bs.modal', function (event) {
+  this.querySelector('form').action = event.relatedTarget.dataset.url;
+  document.getElementById('nombreEliminar').textContent = event.relatedTarget.dataset.nombre;
+});
+</script>
+{% endif %}
+{% endblock %}

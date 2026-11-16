@@ -1,0 +1,68 @@
+{% extends 'base_cpanel.html' %}
+{% block title %}Socios · GIM{% endblock %}
+{% block content %}
+{% set gestionar = 'socios.gestionar' in session['usuario']['permisos'] %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3">Socios</h1>
+  {% if gestionar and disponible %}<button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#nuevoSocio">Nuevo socio</button>{% endif %}
+</div>
+{% if disponible %}
+<label for="buscarSocio" class="form-label">Buscar por cédula, nombre o correo</label>
+<input id="buscarSocio" type="search" class="form-control mb-3" placeholder="Buscar socio…">
+<div class="table-responsive"><table class="table table-striped align-middle">
+<thead><tr><th scope="col">ID</th><th scope="col">Cédula</th><th scope="col">Nombre</th><th scope="col">Teléfono</th><th scope="col">Correo</th><th scope="col">Nacimiento</th><th scope="col">Registro</th>{% if gestionar %}<th scope="col">Acciones</th>{% endif %}</tr></thead>
+<tbody id="filasSocios">
+{% for socio in socios %}
+<tr data-socio><td>{{ socio.id }}</td><td>{{ socio.cedula }}</td><td>{{ socio.nombre }} {{ socio.apellido }}</td><td>{{ socio.telefono or '—' }}</td><td>{{ socio.email or '—' }}</td><td>{{ socio.fecha_nacimiento or '—' }}</td><td>{{ socio.fecha_registro }}</td>
+{% if gestionar %}<td><div class="d-flex gap-2">
+  <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editarSocio" data-url="{{ url_for('socios.editar', socio_id=socio.id) }}" data-socio="{{ {'cedula': socio.cedula, 'nombre': socio.nombre, 'apellido': socio.apellido, 'telefono': socio.telefono or '', 'email': socio.email or '', 'fecha_nacimiento': socio.fecha_nacimiento|string if socio.fecha_nacimiento else ''}|tojson|forceescape }}">Editar</button>
+  <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#eliminarSocio" data-url="{{ url_for('socios.eliminar', socio_id=socio.id) }}" data-nombre="{{ socio.nombre }} {{ socio.apellido }}">Eliminar</button>
+</div></td>{% endif %}</tr>
+{% else %}<tr><td colspan="{{ 8 if gestionar else 7 }}" class="text-center text-secondary">No hay socios registrados.</td></tr>{% endfor %}
+</tbody></table></div>
+<p id="sinResultados" class="text-secondary d-none" role="status">No hay coincidencias.</p>
+{% endif %}
+{% if gestionar and disponible %}
+{% for modal_id, titulo, accion in [('nuevoSocio', 'Nuevo socio', url_for('socios.crear')), ('editarSocio', 'Editar socio', '')] %}
+<div class="modal fade" id="{{ modal_id }}" tabindex="-1" aria-labelledby="{{ modal_id }}Titulo" aria-hidden="true">
+<div class="modal-dialog"><div class="modal-content">
+<form method="post" action="{{ accion }}">
+  <div class="modal-header"><h2 class="modal-title fs-5" id="{{ modal_id }}Titulo">{{ titulo }}</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button></div>
+  <div class="modal-body">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% for campo, etiqueta, tipo, limite, obligatorio in [('cedula', 'Cédula', 'text', 15, true), ('nombre', 'Nombre', 'text', 60, true), ('apellido', 'Apellido', 'text', 60, true), ('telefono', 'Teléfono', 'tel', 20, false), ('email', 'Correo electrónico', 'email', 120, false), ('fecha_nacimiento', 'Fecha de nacimiento', 'date', 10, false)] %}
+    <div class="mb-3"><label class="form-label" for="{{ modal_id }}_{{ campo }}">{{ etiqueta }}{% if obligatorio %} *{% endif %}</label>
+      <input class="form-control" id="{{ modal_id }}_{{ campo }}" name="{{ campo }}" type="{{ tipo }}" maxlength="{{ limite }}" {% if obligatorio %}required{% endif %}></div>
+    {% endfor %}
+  </div>
+  <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-primary">Guardar</button></div>
+</form></div></div></div>
+{% endfor %}
+<div class="modal fade" id="eliminarSocio" tabindex="-1" aria-labelledby="eliminarTitulo" aria-hidden="true"><div class="modal-dialog"><div class="modal-content">
+<form method="post">
+  <div class="modal-header"><h2 class="modal-title fs-5" id="eliminarTitulo">Eliminar socio</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button></div>
+  <div class="modal-body"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <p>¿Eliminar a <strong id="nombreEliminar"></strong>?</p><p class="text-danger">También se eliminarán sus membresías y asistencias. Esta acción es permanente.</p></div>
+  <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-danger">Eliminar</button></div>
+</form></div></div></div>
+{% endif %}
+<script>
+document.getElementById('buscarSocio')?.addEventListener('input', function () {
+  const consulta = this.value.toLocaleLowerCase().trim();
+  const filas = [...document.querySelectorAll('tr[data-socio]')];
+  filas.forEach(fila => { fila.hidden = !fila.textContent.toLocaleLowerCase().includes(consulta); });
+  document.getElementById('sinResultados').classList.toggle('d-none', !filas.length || filas.some(fila => !fila.hidden));
+});
+document.getElementById('editarSocio')?.addEventListener('show.bs.modal', function (event) {
+  const boton = event.relatedTarget;
+  const form = this.querySelector('form');
+  form.action = boton.dataset.url;
+  const socio = JSON.parse(boton.dataset.socio);
+  Object.entries(socio).forEach(([campo, valor]) => { form.elements.namedItem(campo).value = valor; });
+});
+document.getElementById('eliminarSocio')?.addEventListener('show.bs.modal', function (event) {
+  this.querySelector('form').action = event.relatedTarget.dataset.url;
+  document.getElementById('nombreEliminar').textContent = event.relatedTarget.dataset.nombre;
+});
+</script>
+{% endblock %}

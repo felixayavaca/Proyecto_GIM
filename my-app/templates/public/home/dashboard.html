@@ -1,0 +1,15 @@
+{% extends 'base_cpanel.html' %}
+{% block title %}Dashboard · GIM{% endblock %}
+{% block content %}
+<h1 class="h3 mb-4">Resumen del gimnasio</h1>
+{% if resumen %}
+<div class="row g-3">
+  {% for clave, titulo in [('socios_activos', 'Socios activos'), ('membresias_vigentes', 'Membresías vigentes'), ('asistencias_hoy', 'Asistencias de hoy')] %}
+  <div class="col-12 col-lg-4"><section class="card h-100 shadow-sm"><div class="card-body">
+    <h2 class="h6 text-secondary">{{ titulo }}</h2><p class="display-6 mb-0">{{ resumen[clave] }}</p>
+  </div></section></div>
+  {% endfor %}
+</div>
+<p class="small text-secondary mt-3">Socios activos: socios con al menos una membresía activa vigente a la fecha.</p>
+{% endif %}
+{% endblock %}
