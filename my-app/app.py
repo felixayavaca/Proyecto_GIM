@@ -7,6 +7,8 @@ from routers.router_socios import socios_bp
 from routers.router_membresias import membresias_bp
 from routers.router_asistencias import asistencias_bp
 from routers.router_instructores import instructores_bp
+from routers.router_planes import planes_bp
+from routers.router_entrenadores import entrenadores_bp
 
 app = Flask(__name__, template_folder='templates/public', static_folder='static')
 app.config.update(
@@ -24,6 +26,8 @@ app.register_blueprint(socios_bp)
 app.register_blueprint(membresias_bp)
 app.register_blueprint(asistencias_bp)
 app.register_blueprint(instructores_bp)
+app.register_blueprint(planes_bp)
+app.register_blueprint(entrenadores_bp)
 
 
 @app.after_request

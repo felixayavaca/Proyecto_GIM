@@ -1,15 +1,222 @@
 {% extends 'base_cpanel.html' %}
-{% block title %}Dashboard · GIM{% endblock %}
+{% block title %}Dashboard ejecutivo · GIM PRO{% endblock %}
+{% macro dinero(valor) %}${{ '{:,.2f}'.format(valor) }}{% endmacro %}
 {% block content %}
-<h1 class="h3 mb-4">Resumen del gimnasio</h1>
-{% if resumen %}
-<div class="row g-3">
-  {% for clave, titulo in [('socios_activos', 'Socios activos'), ('membresias_vigentes', 'Membresías vigentes'), ('asistencias_hoy', 'Asistencias de hoy')] %}
-  <div class="col-12 col-lg-4"><section class="card h-100 shadow-sm"><div class="card-body">
-    <h2 class="h6 text-secondary">{{ titulo }}</h2><p class="display-6 mb-0">{{ resumen[clave] }}</p>
-  </div></section></div>
-  {% endfor %}
+<style>
+  .gim-dashboard { color: #172522; --gim-muted: #50635c; }
+  .gim-hero { background: linear-gradient(120deg, #142722 10%, #244638 100%); }
+  .gim-hero img { width: clamp(150px, 24vw, 220px); height: auto; }
+  .gim-surface { background: #fff; border: 1px solid #dce7e1; border-radius: 1rem; }
+  .gim-filter { background: #f3f7f4; }
+  .gim-kpi { border-inline-start: 4px solid #7ca85d; }
+  .gim-kpi strong { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+  .gim-muted { color: var(--gim-muted); }
+  .gim-chart { position: relative; height: 17rem; }
+  .gim-table { --bs-table-color: #172522; }
+  .gim-table thead th { background: #f3f7f4; color: #42564d; }
+</style>
+<div class="gim-dashboard">
+  <header class="gim-hero text-white p-4 p-xl-5 rounded-4 mb-4 d-flex flex-wrap align-items-center justify-content-between gap-3">
+    <div>
+      <h1 class="display-6 fw-bold mb-2">Dashboard ejecutivo</h1>
+      {% if resumen %}<p class="mb-0 text-white-50">{{ filtros.fecha_inicio }} al {{ filtros.fecha_fin }} · {{ 'Todas las categorías' if not filtros.categoria else ('Básico' if filtros.categoria == 'Basico' else filtros.categoria) }}</p>{% endif %}
+    </div>
+    <img src="{{ url_for('static', filename='gim-pro.svg') }}" alt="GIM PRO · Fitness Center" width="220" height="58">
+  </header>
+
+  <form method="get" action="{{ url_for('home.dashboard') }}" class="gim-surface gim-filter p-3 mb-4 d-flex flex-wrap align-items-end gap-3">
+    <div><label for="fecha_inicio" class="form-label">Desde</label>
+      <input id="fecha_inicio" name="fecha_inicio" type="date" min="1000-01-01" value="{{ filtros.fecha_inicio }}" class="form-control"></div>
+    <div><label for="fecha_fin" class="form-label">Hasta</label>
+      <input id="fecha_fin" name="fecha_fin" type="date" min="1000-01-01" value="{{ filtros.fecha_fin }}" class="form-control"></div>
+    <div><label for="categoria" class="form-label">Categoría de plan</label>
+      <select id="categoria" name="categoria" class="form-select">
+        <option value="">Todas</option>
+        {% for categoria in categorias %}
+          <option value="{{ categoria }}" {% if categoria == filtros.categoria %}selected{% endif %}>{{ 'Básico' if categoria == 'Basico' else categoria }}</option>
+        {% endfor %}
+      </select></div>
+    <div><label for="socio_id" class="form-label">Socio</label>
+      <select id="socio_id" name="socio_id" class="form-select">
+        <option value="">Todos</option>
+        {% for socio in socios %}
+        <option value="{{ socio.id }}" {% if socio.id|string == filtros.socio_id %}selected{% endif %}>{{ socio.nombre }} · {{ socio.cedula }}</option>
+        {% endfor %}
+      </select></div>
+    <div class="d-flex flex-wrap gap-2">
+      <button type="submit" class="btn btn-dark">Filtrar</button>
+      <a class="btn btn-outline-secondary" href="{{ url_for('home.dashboard') }}">Limpiar</a>
+      {% if resumen and 'reportes.exportar' in session['usuario']['permisos'] %}
+      <a class="btn btn-outline-success" href="{{ url_for('home.exportar', **filtros) }}">Exportar Excel</a>
+      {% endif %}
+    </div>
+  </form>
+
+  {% if resumen %}
+  <section class="row row-cols-1 row-cols-sm-2 row-cols-xl-5 g-3 mb-4" aria-label="Indicadores principales">
+    {% for clave, titulo, alcance, unidad in indicadores %}
+    {% set valor = resumen.kpis[clave] %}
+    <div class="col"><div class="gim-surface gim-kpi p-3 h-100 d-flex flex-column">
+      <h2 class="h6 mb-2">{{ titulo }}</h2>
+      <strong class="fs-4 mb-1 mt-auto">
+        {% if unidad == 'USD' %}{{ dinero(valor) }}{% elif unidad == 'min' %}{{ '{:,.1f}'.format(valor) }} <small class="fs-6">min</small>{% else %}{{ '{:,}'.format(valor) }}{% endif %}
+      </strong>
+      <small class="gim-muted">{{ alcance }}</small>
+    </div></div>
+    {% endfor %}
+  </section>
+
+  {% if resumen.socio %}
+  {% set membresia = resumen.socio.membresia %}
+  <section class="gim-surface p-3 p-lg-4 mb-4">
+    <h2 class="h5 mb-3">{{ resumen.socio.nombre }} · {{ resumen.socio.cedula }}</h2>
+    <div class="d-flex flex-wrap gap-4 mb-3">
+      <div><strong>{{ resumen.asistencia_diaria|length }}</strong> días asistidos en el periodo</div>
+      <div>Membresía hoy
+        <span class="badge text-bg-{{ 'success' if membresia and membresia.estado_actual == 'Vigente' else 'secondary' }}">
+          {{ membresia.estado_actual if membresia else 'Sin membresía' }}</span>
+        {% if membresia %}<span class="gim-muted">{{ membresia.plan }} · {{ membresia.fecha_inicio }} a {{ membresia.fecha_fin }}</span>{% endif %}
+      </div>
+    </div>
+    <details>
+      <summary>Ver fechas de asistencia</summary>
+      <div class="table-responsive mt-2"><table class="table gim-table mb-0">
+        <thead><tr><th scope="col">Fecha</th><th scope="col" class="text-end">Visitas</th></tr></thead>
+        <tbody>
+          {% for fila in resumen.asistencia_diaria %}
+          <tr><td>{{ fila.fecha }}</td><td class="text-end">{{ fila.visitas }}</td></tr>
+          {% else %}<tr><td colspan="2">Sin visitas en el periodo.</td></tr>{% endfor %}
+        </tbody>
+      </table></div>
+    </details>
+  </section>
+  {% endif %}
+
+  <div class="row g-3 mb-4">
+    {% for id, titulo, nota in [
+      ('horarios', 'Horas de visita del socio' if resumen.socio else 'Horarios de mayor visita', 'Entradas por hora local de Ecuador'),
+      ('generos', 'Asistencia por género', 'Entradas en el periodo'),
+      ('planes', 'Planes con mayores ventas', 'Hasta 10 planes por cantidad vendida'),
+      ('mensual', 'Nuevos clientes vs. pérdidas por mes', 'Altas y membresías vencidas o canceladas por mes de fin')
+    ] %}
+    <section class="col-12 col-xl-6"><div class="gim-surface p-3 p-lg-4 h-100">
+      <h2 id="{{ id }}Titulo" class="h5 mb-1">{{ titulo }}</h2>
+      <p id="{{ id }}Nota" class="small gim-muted mb-3">{{ nota }}</p>
+      <div class="gim-chart">
+        <canvas id="{{ id }}Chart" role="img" aria-labelledby="{{ id }}Titulo" aria-describedby="{{ id }}Nota"></canvas>
+        <p id="{{ id }}-vacio" class="text-secondary" hidden>Sin datos para los filtros elegidos.</p>
+      </div>
+    </div></section>
+    {% endfor %}
+  </div>
+
+  <div class="row g-3 mb-4">
+    <section class="col-12 col-xl-6"><div class="gim-surface p-3 p-lg-4 h-100">
+      <h2 id="metodosTitulo" class="h5">Resumen de pagos por método</h2>
+      <p class="mb-2">Total recaudado en el periodo <strong class="fs-5">{{ dinero(resumen.kpis.ingresos_periodo) }}</strong></p>
+      <div class="gim-chart">
+        <canvas id="metodosChart" role="img" aria-labelledby="metodosTitulo"></canvas>
+        <p id="metodos-vacio" class="text-secondary" hidden>Sin importes recaudados para los filtros elegidos.</p>
+      </div>
+      <div class="table-responsive"><table class="table gim-table align-middle mb-0">
+        <thead><tr><th scope="col">Método</th><th scope="col" class="text-end">Pagos</th><th scope="col" class="text-end">Ingresos</th></tr></thead>
+        <tbody>
+          {% for fila in resumen.metodos %}
+          <tr><td>{{ fila.metodo_pago }}</td><td class="text-end">{{ fila.pagos }}</td><td class="text-end">{{ dinero(fila.ingresos) }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table></div>
+    </div></section>
+    <section class="col-12 col-xl-6"><div class="gim-surface p-3 p-lg-4 h-100">
+      <h2 class="h5 mb-1">Socios asignados por instructor</h2>
+      <p class="small gim-muted">Instructores y socios activos hoy</p>
+      <div class="table-responsive"><table class="table gim-table align-middle mb-0">
+        <thead><tr><th scope="col">Instructor</th><th scope="col" class="text-end">Socios asignados</th></tr></thead>
+        <tbody>
+          {% for fila in resumen.instructores %}
+          <tr><td>{{ fila.instructor }}</td><td class="text-end">{{ fila.socios }}</td></tr>
+          {% else %}<tr><td colspan="2" class="gim-muted">No hay instructores activos.</td></tr>{% endfor %}
+        </tbody>
+      </table></div>
+    </div></section>
+  </div>
+
+  <script id="datos-dashboard" type="application/json">{{ graficos|tojson }}</script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    (() => {
+      const datos = JSON.parse(document.getElementById('datos-dashboard').textContent);
+      const moneda = new Intl.NumberFormat('es-EC', {style: 'currency', currency: 'USD'});
+      const genero = {M: 'Masculino', F: 'Femenino', Otro: 'Otro'};
+      const base = {responsive: true, maintainAspectRatio: false};
+      const ejeCantidad = {beginAtZero: true, ticks: {precision: 0}};
+      const sinLeyenda = {legend: {display: false}};
+
+      function mostrar(id, configuracion) {
+        const canvas = document.getElementById(id + 'Chart');
+        if (!canvas) return;
+        if (typeof Chart !== 'undefined' && configuracion.data.datasets.some(serie => serie.data.some(Boolean))) {
+          new Chart(canvas, configuracion);
+          return;
+        }
+        canvas.hidden = true;
+        const aviso = document.getElementById(id + '-vacio');
+        if (typeof Chart === 'undefined') aviso.textContent = 'No se pudo cargar el gráfico.';
+        aviso.hidden = false;
+      }
+
+      mostrar('metodos', {
+        type: 'doughnut',
+        data: {labels: datos.metodos.map(fila => fila.metodo_pago), datasets: [{
+          data: datos.metodos.map(fila => fila.ingresos), backgroundColor: ['#287a62', '#6675bc', '#d49b3c']
+        }]},
+        options: {...base, cutout: '64%', plugins: {
+          legend: {position: 'bottom'},
+          tooltip: {callbacks: {label: ({label, raw}) => label + ': ' + moneda.format(raw)}}
+        }}
+      });
+
+      mostrar('horarios', {
+        type: 'bar',
+        data: {labels: datos.horarios.map(fila => fila.hora), datasets: [{
+          label: 'Visitas', data: datos.horarios.map(fila => fila.visitas), backgroundColor: '#287a62', borderRadius: 4
+        }]},
+        options: {...base, plugins: sinLeyenda, scales: {y: ejeCantidad}}
+      });
+
+      mostrar('generos', {
+        type: 'doughnut',
+        data: {labels: datos.generos.map(fila => genero[fila.genero]), datasets: [{
+          data: datos.generos.map(fila => fila.visitas), backgroundColor: ['#287a62', '#6675bc', '#d49b3c']
+        }]},
+        options: {...base, cutout: '64%', plugins: {legend: {position: 'bottom'}}}
+      });
+
+      const mejores = datos.planes;
+      mostrar('planes', {
+        type: 'bar',
+        data: {labels: mejores.map(fila => fila.nombre), datasets: [{
+          label: 'Ventas', data: mejores.map(fila => fila.ventas), backgroundColor: '#6675bc', borderRadius: 4
+        }]},
+        options: {...base, indexAxis: 'y', scales: {x: ejeCantidad}, plugins: {
+          ...sinLeyenda, tooltip: {callbacks: {afterLabel: ({dataIndex}) => {
+            const plan = mejores[dataIndex];
+            return [plan.categoria === 'Basico' ? 'Básico' : plan.categoria, 'Ingresos: ' + moneda.format(plan.ingresos)];
+          }}}
+        }}
+      });
+
+      mostrar('mensual', {
+        type: 'line',
+        data: {labels: datos.mensual.map(fila => fila.mes), datasets: [
+          {label: 'Nuevos clientes', data: datos.mensual.map(fila => fila.altas), borderColor: '#287a62', tension: 0.2},
+          {label: 'Pérdidas', data: datos.mensual.map(fila => fila.perdidas), borderColor: '#b45437', tension: 0.2}
+        ]},
+        options: {...base, interaction: {mode: 'index', intersect: false}, scales: {y: ejeCantidad},
+          plugins: {legend: {position: 'bottom'}}}
+      });
+    })();
+  </script>
+  {% endif %}
 </div>
-<p class="small text-secondary mt-3">Socios activos: socios con al menos una membresía activa vigente a la fecha.</p>
-{% endif %}
 {% endblock %}

@@ -1,68 +1,272 @@
 {% extends 'base_cpanel.html' %}
-{% block title %}Socios · GIM{% endblock %}
-{% block content %}
-{% set gestionar = 'socios.gestionar' in session['usuario']['permisos'] %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h1 class="h3">Socios</h1>
-  {% if gestionar and disponible %}<button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#nuevoSocio">Nuevo socio</button>{% endif %}
+{% block title %}Socios y Pagos · GIM{% endblock %}
+{% macro formulario_socio(id, titulo, accion) %}
+<div class="modal fade" id="{{ id }}" tabindex="-1" aria-labelledby="{{ id }}Titulo" aria-hidden="true">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <form method="post" action="{{ accion }}">
+      <div class="modal-header">
+        <h2 class="modal-title fs-5" id="{{ id }}Titulo">{{ titulo }}</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body row g-3">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% for campo, etiqueta, tipo, limite, patron, requerido in [
+          ('cedula', 'Cédula', 'text', 10, '\\d{10}', true),
+          ('nombre', 'Nombre', 'text', 60, '', true),
+          ('apellido', 'Apellido', 'text', 60, '', true),
+          ('telefono', 'Teléfono', 'text', 10, '09\\d{8}', true),
+          ('email', 'Correo electrónico', 'email', 120, '', false),
+          ('fecha_nacimiento', 'Fecha de nacimiento', 'date', 0, '', false)
+        ] %}
+        <div class="col-sm-6">
+          <label class="form-label" for="{{ id }}_{{ campo }}">{{ etiqueta }}</label>
+          <input class="form-control" id="{{ id }}_{{ campo }}" name="{{ campo }}" type="{{ tipo }}"
+            {% if limite %}maxlength="{{ limite }}"{% endif %}
+            {% if patron %}pattern="{{ patron }}" inputmode="numeric" minlength="10"
+              oninput="this.value = this.value.replace(/\D/g, '').slice(0, 10)"{% endif %}
+            {% if campo == 'telefono' %}placeholder="09XXXXXXXX"{% endif %}
+            {% if requerido %}required{% endif %}>
+        </div>
+        {% endfor %}
+        <div class="col-sm-6"><label class="form-label" for="{{ id }}Genero">Género</label>
+          <select class="form-select" id="{{ id }}Genero" name="genero" required>
+            <option value="">Seleccionar</option>
+            {% for genero in generos %}<option value="{{ genero }}">{{ genero }}</option>{% endfor %}
+          </select>
+        </div>
+        {% for campo, etiqueta, opciones in [
+          ('referido_por_socio_id', 'Socio referente', referentes), ('instructor_id', 'Instructor asignado', instructores)
+        ] %}
+        <div class="col-sm-6">
+          <div class="form-check form-switch">
+            <input type="checkbox" class="form-check-input" id="{{ id }}_activar_{{ campo }}" data-opcional="{{ campo }}">
+            <label class="form-check-label" for="{{ id }}_activar_{{ campo }}">{{ etiqueta }}</label>
+          </div>
+          <select class="form-select mt-1" name="{{ campo }}" aria-label="{{ etiqueta }}" disabled>
+            <option value="">Seleccionar</option>
+            {% for opcion in opciones %}
+            <option value="{{ opcion.id }}">{{ opcion.nombre }} {{ opcion.apellido }}{% if opcion.cedula %} · {{ opcion.cedula }}{% elif not opcion.activo %} · Inactivo{% endif %}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Guardar</button>
+      </div>
+    </form>
+  </div></div>
 </div>
+{% endmacro %}
+{% macro filtro_texto(formulario, campo, etiqueta, valor) %}
+<input type="search" name="{{ campo }}" form="{{ formulario }}" class="form-control form-control-sm"
+  aria-label="Filtrar por {{ etiqueta }}" placeholder="{{ etiqueta }}" value="{{ valor }}" style="min-width: 7rem">
+{% endmacro %}
+{% macro filtro_select(formulario, campo, etiqueta, valor, opciones) %}
+<select name="{{ campo }}" form="{{ formulario }}" class="form-select form-select-sm"
+  aria-label="Filtrar por {{ etiqueta }}" style="min-width: 7rem">
+  <option value="">Todos</option>
+  {% for clave, texto in opciones %}
+  <option value="{{ clave }}" {% if valor == clave|string %}selected{% endif %}>{{ texto }}</option>
+  {% endfor %}
+</select>
+{% endmacro %}
+{% macro controles(formulario, limpiar) %}
+<div class="d-flex gap-1">
+  <button type="submit" form="{{ formulario }}" class="btn btn-sm btn-outline-primary" data-panel-filter-submit>Filtrar</button>
+  <a class="btn btn-sm btn-outline-secondary" data-clear-filters href="{{ limpiar }}">Limpiar</a>
+</div>
+{% endmacro %}
+{% block content %}
+<h1 class="h3 mb-3">Socios y Pagos</h1>
 {% if disponible %}
-<label for="buscarSocio" class="form-label">Buscar por cédula, nombre o correo</label>
-<input id="buscarSocio" type="search" class="form-control mb-3" placeholder="Buscar socio…">
-<div class="table-responsive"><table class="table table-striped align-middle">
-<thead><tr><th scope="col">ID</th><th scope="col">Cédula</th><th scope="col">Nombre</th><th scope="col">Teléfono</th><th scope="col">Correo</th><th scope="col">Nacimiento</th><th scope="col">Registro</th>{% if gestionar %}<th scope="col">Acciones</th>{% endif %}</tr></thead>
-<tbody id="filasSocios">
-{% for socio in socios %}
-<tr data-socio><td>{{ socio.id }}</td><td>{{ socio.cedula }}</td><td>{{ socio.nombre }} {{ socio.apellido }}</td><td>{{ socio.telefono or '—' }}</td><td>{{ socio.email or '—' }}</td><td>{{ socio.fecha_nacimiento or '—' }}</td><td>{{ socio.fecha_registro }}</td>
-{% if gestionar %}<td><div class="d-flex gap-2">
-  <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editarSocio" data-url="{{ url_for('socios.editar', socio_id=socio.id) }}" data-socio="{{ {'cedula': socio.cedula, 'nombre': socio.nombre, 'apellido': socio.apellido, 'telefono': socio.telefono or '', 'email': socio.email or '', 'fecha_nacimiento': socio.fecha_nacimiento|string if socio.fecha_nacimiento else ''}|tojson|forceescape }}">Editar</button>
-  <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#eliminarSocio" data-url="{{ url_for('socios.eliminar', socio_id=socio.id) }}" data-nombre="{{ socio.nombre }} {{ socio.apellido }}">Eliminar</button>
-</div></td>{% endif %}</tr>
-{% else %}<tr><td colspan="{{ 8 if gestionar else 7 }}" class="text-center text-secondary">No hay socios registrados.</td></tr>{% endfor %}
-</tbody></table></div>
-<p id="sinResultados" class="text-secondary d-none" role="status">No hay coincidencias.</p>
+<div class="d-flex flex-wrap align-items-end gap-2 mb-3">
+  {% if 'reportes.exportar' in session['usuario']['permisos'] %}
+    <a class="btn btn-outline-success" data-export-filters href="{{ url_for('socios.exportar', **filtros_combinados) }}">Exportar Excel</a>
+  {% endif %}
+</div>
+
+<ul class="nav nav-tabs mb-3" role="tablist">
+  <li class="nav-item" role="presentation">
+    <button class="nav-link{% if not mostrar_pagos %} active{% endif %}" id="directorio-tab" type="button" role="tab"
+      aria-controls="directorio" aria-selected="{{ 'false' if mostrar_pagos else 'true' }}" data-bs-toggle="tab" data-bs-target="#directorio">Directorio y membresía activa</button>
+  </li>
+  {% if ver_pagos %}<li class="nav-item" role="presentation">
+    <button class="nav-link{% if mostrar_pagos %} active{% endif %}" id="pagos-tab" type="button" role="tab"
+      aria-controls="pagos" aria-selected="{{ 'true' if mostrar_pagos else 'false' }}" data-bs-toggle="tab" data-bs-target="#pagos">Historial de ventas y pagos</button>
+  </li>{% endif %}
+</ul>
+<div class="tab-content">
+  <section class="tab-pane fade{% if not mostrar_pagos %} show active{% endif %}" id="directorio" role="tabpanel" aria-labelledby="directorio-tab" tabindex="0">
+    <form id="filtrosDirectorio" method="get" action="{{ url_for('socios.lista') }}">
+      {% for campo, valor in filtros_pagos.items() %}<input type="hidden" name="{{ campo }}" value="{{ valor }}">{% endfor %}
+    </form>
+    {% if gestionar %}<button class="btn btn-primary mb-3" type="button" data-bs-toggle="modal" data-bs-target="#nuevoSocio">Nuevo socio</button>{% endif %}
+    {% if registrar and not planes %}<p class="text-secondary">Activa un plan para registrar pagos.</p>{% endif %}
+    <div class="table-responsive"><table class="table table-striped align-middle">
+      <thead>
+        <tr><th>Cédula</th><th>Socio</th><th>Género</th><th>Contacto</th><th>Instructor</th><th>Referente</th><th>Estado</th><th>Plan vigente</th><th>Días restantes</th><th>Fecha ingreso</th><th>Antigüedad</th><th>Acciones</th></tr>
+        <tr>
+          {% set formulario = 'filtrosDirectorio' %}
+          <td>{{ filtro_texto(formulario, 'cedula', 'Cédula', filtros.get('cedula', '')) }}</td>
+          <td>{{ filtro_texto(formulario, 'socio', 'Socio', filtros.get('socio', '')) }}</td>
+          <td>{{ filtro_select(formulario, 'genero', 'género', filtros.genero, opciones_generos) }}</td>
+          <td>{{ filtro_texto(formulario, 'contacto', 'Teléfono o correo', filtros.get('contacto', '')) }}</td>
+          <td>{{ filtro_select(formulario, 'instructor_id', 'instructor', filtros.instructor_id, opciones_instructores) }}</td>
+          <td>{{ filtro_texto(formulario, 'referente', 'Referente', filtros.get('referente', '')) }}</td>
+          <td>{{ filtro_select(formulario, 'estado', 'estado', filtros.estado, [('1', 'Activo'), ('0', 'Inactivo')]) }}</td>
+          <td>{{ filtro_select(formulario, 'plan_vigente', 'plan vigente', filtros.plan_vigente, [('sin_plan', 'Sin plan')] + opciones_planes) }}</td>
+          <td>{{ filtro_select(formulario, 'dias_restantes', 'días restantes', filtros.dias_restantes,
+                [('por_vencer', 'Por vencer (≤7 d)'), ('vigentes', 'Vigentes (>7 d)'), ('sin_vigencia', 'Vencidos/Sin plan')]) }}</td>
+          <td><input name="fecha_ingreso" type="date" min="1000-01-01" form="filtrosDirectorio"
+            class="form-control form-control-sm" aria-label="Filtrar por fecha de ingreso" value="{{ filtros.get('fecha_ingreso', '') }}"></td>
+          <td><input name="antiguedad_min" type="number" min="0" max="2147483647" form="filtrosDirectorio" data-filter-mode="min"
+            class="form-control form-control-sm" aria-label="Antigüedad mínima en días" placeholder="Mín."
+            value="{{ filtros.get('antiguedad_min', '') }}" style="min-width: 5rem"></td>
+          <td>{{ controles(formulario, url_for('socios.lista', **filtros_pagos)) }}</td>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in socios %}
+        <tr>
+          <td>{{ s.cedula }}</td><td>{{ s.nombre }} {{ s.apellido }}</td><td>{{ s.genero }}</td>
+          <td data-filter-value="{{ s.telefono or '' }} {{ s.email or '' }}">{{ s.telefono or '—' }}{% if s.email %}<br>{{ s.email }}{% endif %}</td>
+          <td data-filter-value="{{ s.instructor_id or '' }}">{{ s.instructor_nombre or '—' }}</td>
+          <td data-filter-value="{{ s.referente_nombre or '' }}">{{ s.referente_nombre or '—' }}</td>
+          <td data-filter-value="{{ s.activo }}">
+            {% set estado_texto = 'Activo' if s.activo else 'Inactivo' %}
+            {% if gestionar %}
+            <form method="post" action="{{ url_for('socios.estado', socio_id=s.id, **filtros_combinados) }}"
+              {% if s.activo %}data-confirm="¿Desactivar a {{ s.nombre }} {{ s.apellido }}?"{% endif %}>
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="activo" value="{{ 0 if s.activo else 1 }}">
+              <button type="submit" class="btn btn-{{ 'success' if s.activo else 'secondary' }} badge"
+                title="{{ 'Desactivar' if s.activo else 'Activar' }}"
+                aria-label="{{ estado_texto }}. {{ 'Desactivar' if s.activo else 'Activar' }} a {{ s.nombre }} {{ s.apellido }}">{{ estado_texto }}</button>
+            </form>
+            {% else %}<span class="badge text-bg-{{ 'success' if s.activo else 'secondary' }}">{{ estado_texto }}</span>{% endif %}
+          </td>
+          <td data-filter-value="{{ s.plan_actual_id or 'sin_plan' }}">{{ s.plan_actual or '—' }}</td>
+          <td data-filter-value="{{ 'sin_vigencia' if s.dias_restantes is none else ('por_vencer' if s.dias_restantes <= 7 else 'vigentes') }}">
+            {{ s.dias_restantes if s.dias_restantes is not none else '—' }}</td>
+          <td>{{ s.fecha_registro }}</td><td data-filter-value="{{ s.antiguedad }}">{{ s.antiguedad }} días</td>
+          <td><div class="d-flex flex-wrap gap-2">
+            {% if gestionar %}
+            {% set datos = dict(s, fecha_nacimiento=s.fecha_nacimiento|string if s.fecha_nacimiento else '', fecha_registro=s.fecha_registro|string, fecha_fin=s.fecha_fin|string if s.fecha_fin else '') %}
+            <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editarSocio"
+              data-socio="{{ datos|tojson|forceescape }}" data-url="{{ url_for('socios.editar', socio_id=s.id, **filtros_combinados) }}">Editar</button>
+            {% endif %}
+            {% if registrar and s.activo and planes %}
+            <button type="button" class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#pagarSocio"
+              data-socio="{{ s.nombre }} {{ s.apellido }}" data-url="{{ url_for('socios.pagar', socio_id=s.id, **filtros_combinados) }}">Renovar / Pagar</button>
+            {% endif %}
+          </div></td>
+        </tr>
+        {% else %}<tr><td colspan="12">No se encontraron socios.</td></tr>{% endfor %}
+      </tbody>
+    </table></div>
+  </section>
+  {% if ver_pagos %}
+  <section class="tab-pane fade{% if mostrar_pagos %} show active{% endif %}" id="pagos" role="tabpanel" aria-labelledby="pagos-tab" tabindex="0">
+    <form id="filtrosPagos" method="get" action="{{ url_for('socios.lista') }}">
+      <input type="hidden" name="tab" value="pagos">
+      {% for campo, valor in filtros.items() %}<input type="hidden" name="{{ campo }}" value="{{ valor }}">{% endfor %}
+    </form>
+    <div class="table-responsive"><table class="table table-striped align-middle">
+      <thead>
+        <tr><th>Fecha de pago</th><th>Cédula</th><th>Socio</th><th>Plan</th><th>Método de pago</th><th>Duración (días)</th><th>Antigüedad al pagar (días)</th><th>Precio pagado</th><th>Estado membresía</th></tr>
+        <tr>
+          <td><input type="date" name="pago_fecha" min="1000-01-01" form="filtrosPagos" aria-label="Filtrar por fecha de pago"
+            class="form-control form-control-sm" value="{{ filtros_pagos.get('pago_fecha', '') }}"></td>
+          <td></td>
+          <td>{{ filtro_texto('filtrosPagos', 'pago_socio', 'Socio', filtros_pagos.get('pago_socio', '')) }}</td>
+          <td>{{ filtro_select('filtrosPagos', 'pago_plan', 'plan pagado', filtros_pagos.pago_plan, opciones_planes) }}</td>
+          <td>{{ filtro_select('filtrosPagos', 'pago_metodo', 'método de pago', filtros_pagos.pago_metodo, opciones_metodos) }}</td>
+          <td colspan="4">{{ controles('filtrosPagos', url_for('socios.lista', tab='pagos', **filtros)) }}</td>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in pagos %}
+        <tr><td data-filter-value="{{ p.fecha_pago.date() }}">{{ p.fecha_pago }}</td><td>{{ p.cedula }}</td><td>{{ p.socio_nombre }}</td><td data-filter-value="{{ p.plan_id }}">{{ p.plan_nombre }}</td>
+          <td>{{ p.metodo_pago }}</td><td>{{ p.duracion_dias }}</td><td>{{ p.antiguedad }}</td><td>${{ '%.2f'|format(p.precio_pagado) }}</td><td>{{ p.estado|capitalize }}</td></tr>
+        {% else %}<tr><td colspan="9">No se encontraron pagos.</td></tr>{% endfor %}
+      </tbody>
+    </table></div>
+  </section>
+  {% endif %}
+</div>
+{% if gestionar %}
+  {{ formulario_socio('nuevoSocio', 'Nuevo socio', url_for('socios.crear', **filtros_combinados)) }}
+  {{ formulario_socio('editarSocio', 'Editar socio', '') }}
 {% endif %}
-{% if gestionar and disponible %}
-{% for modal_id, titulo, accion in [('nuevoSocio', 'Nuevo socio', url_for('socios.crear')), ('editarSocio', 'Editar socio', '')] %}
-<div class="modal fade" id="{{ modal_id }}" tabindex="-1" aria-labelledby="{{ modal_id }}Titulo" aria-hidden="true">
-<div class="modal-dialog"><div class="modal-content">
-<form method="post" action="{{ accion }}">
-  <div class="modal-header"><h2 class="modal-title fs-5" id="{{ modal_id }}Titulo">{{ titulo }}</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button></div>
-  <div class="modal-body">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    {% for campo, etiqueta, tipo, limite, obligatorio in [('cedula', 'Cédula', 'text', 15, true), ('nombre', 'Nombre', 'text', 60, true), ('apellido', 'Apellido', 'text', 60, true), ('telefono', 'Teléfono', 'tel', 20, false), ('email', 'Correo electrónico', 'email', 120, false), ('fecha_nacimiento', 'Fecha de nacimiento', 'date', 10, false)] %}
-    <div class="mb-3"><label class="form-label" for="{{ modal_id }}_{{ campo }}">{{ etiqueta }}{% if obligatorio %} *{% endif %}</label>
-      <input class="form-control" id="{{ modal_id }}_{{ campo }}" name="{{ campo }}" type="{{ tipo }}" maxlength="{{ limite }}" {% if obligatorio %}required{% endif %}></div>
-    {% endfor %}
-  </div>
-  <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-primary">Guardar</button></div>
-</form></div></div></div>
-{% endfor %}
-<div class="modal fade" id="eliminarSocio" tabindex="-1" aria-labelledby="eliminarTitulo" aria-hidden="true"><div class="modal-dialog"><div class="modal-content">
-<form method="post">
-  <div class="modal-header"><h2 class="modal-title fs-5" id="eliminarTitulo">Eliminar socio</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button></div>
-  <div class="modal-body"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <p>¿Eliminar a <strong id="nombreEliminar"></strong>?</p><p class="text-danger">También se eliminarán sus membresías y asistencias. Esta acción es permanente.</p></div>
-  <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-danger">Eliminar</button></div>
-</form></div></div></div>
+{% if registrar and planes %}
+<div class="modal fade" id="pagarSocio" tabindex="-1" aria-labelledby="pagarTitulo" aria-hidden="true">
+  <div class="modal-dialog"><div class="modal-content">
+    <form method="post" data-confirm="¿Registrar este pago y asignar la membresía?">
+      <div class="modal-header"><h2 class="modal-title fs-5" id="pagarTitulo">Renovar / Pagar membresía</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button></div>
+      <div class="modal-body">
+        <p id="socioPago" class="fw-semibold"></p>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="mb-3"><label class="form-label" for="planPago">Plan</label>
+          <select class="form-select" id="planPago" name="plan_id" required><option value="">Seleccionar</option>
+            {% for p in planes %}<option value="{{ p.id }}" data-precio="{{ p.precio }}">{{ p.nombre }}{% if p.es_plan_referido %} · Referido{% endif %}</option>{% endfor %}
+          </select></div>
+        <div class="mb-3"><label class="form-label" for="fechaInicio">Fecha de inicio</label>
+          <input class="form-control" id="fechaInicio" type="date" name="fecha_inicio" required></div>
+        <div class="mb-3"><label class="form-label" for="metodoPago">Método de pago</label>
+          <select class="form-select" id="metodoPago" name="metodo_pago" required><option value="">Seleccionar</option>
+            {% for m in metodos %}<option value="{{ m }}">{{ m }}</option>{% endfor %}
+          </select></div>
+        <div class="mb-3"><label class="form-label" for="precioPago">Precio pagado</label>
+          <input class="form-control" id="precioPago" name="precio_pagado" type="number" min="0" max="999999.99" step="0.01" required></div>
+        <div><label class="form-label" for="fechaPago">Fecha y hora del pago (opcional)</label>
+          <input class="form-control" id="fechaPago" name="fecha_pago" type="datetime-local" aria-describedby="fechaPagoAyuda">
+          <div class="form-text" id="fechaPagoAyuda">Si la dejas vacía, se guardará la hora local actual.</div></div>
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-primary">Registrar pago</button></div>
+    </form>
+  </div></div>
+</div>
 {% endif %}
 <script>
-document.getElementById('buscarSocio')?.addEventListener('input', function () {
-  const consulta = this.value.toLocaleLowerCase().trim();
-  const filas = [...document.querySelectorAll('tr[data-socio]')];
-  filas.forEach(fila => { fila.hidden = !fila.textContent.toLocaleLowerCase().includes(consulta); });
-  document.getElementById('sinResultados').classList.toggle('d-none', !filas.length || filas.some(fila => !fila.hidden));
-});
-document.getElementById('editarSocio')?.addEventListener('show.bs.modal', function (event) {
-  const boton = event.relatedTarget;
-  const form = this.querySelector('form');
-  form.action = boton.dataset.url;
-  const socio = JSON.parse(boton.dataset.socio);
-  Object.entries(socio).forEach(([campo, valor]) => { form.elements.namedItem(campo).value = valor; });
-});
-document.getElementById('eliminarSocio')?.addEventListener('show.bs.modal', function (event) {
-  this.querySelector('form').action = event.relatedTarget.dataset.url;
-  document.getElementById('nombreEliminar').textContent = event.relatedTarget.dataset.nombre;
-});
+  for (const interruptor of document.querySelectorAll('[data-opcional]')) {
+    interruptor.addEventListener('change', () => {
+      const selector = interruptor.form.elements.namedItem(interruptor.dataset.opcional);
+      selector.disabled = !interruptor.checked;
+      selector.required = interruptor.checked;
+    });
+  }
+  document.getElementById('editarSocio')?.addEventListener('show.bs.modal', function (evento) {
+    const boton = evento.relatedTarget;
+    const socio = JSON.parse(boton.dataset.socio);
+    const form = this.querySelector('form');
+    form.action = boton.dataset.url;
+    for (const campo of ['cedula', 'nombre', 'apellido', 'genero', 'telefono', 'email', 'fecha_nacimiento']) {
+      form.elements.namedItem(campo).value = socio[campo] ?? '';
+    }
+    for (const interruptor of form.querySelectorAll('[data-opcional]')) {
+      const campo = interruptor.dataset.opcional;
+      const selector = form.elements.namedItem(campo);
+      if (campo === 'referido_por_socio_id') {
+        for (const opcion of selector.options) opcion.disabled = opcion.value === String(socio.id);
+      }
+      selector.value = socio[campo] ?? '';
+      interruptor.checked = Boolean(selector.value);
+      interruptor.dispatchEvent(new Event('change'));
+    }
+  });
+  document.getElementById('pagarSocio')?.addEventListener('show.bs.modal', function (evento) {
+    const form = this.querySelector('form');
+    form.reset();
+    form.action = evento.relatedTarget.dataset.url;
+    document.getElementById('socioPago').textContent = evento.relatedTarget.dataset.socio;
+  });
+  document.getElementById('planPago')?.addEventListener('change', function () {
+    document.getElementById('precioPago').value = this.selectedOptions[0]?.dataset.precio ?? '';
+  });
 </script>
+{% endif %}
 {% endblock %}

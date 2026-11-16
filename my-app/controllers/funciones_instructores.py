@@ -1,10 +1,14 @@
-import re
 from contextlib import contextmanager
 from datetime import date
+import re
 
 import mysql.connector
 
 from conexion.conexionBD import connectionBD
+from controllers.funciones_socios import validar_cedula_telefono
+
+
+TIPOS_CONTRATO = ('Civil', 'IESS')
 
 
 class ErrorInstructores(Exception):
@@ -34,16 +38,32 @@ def _cursor(escritura=False):
         raise ErrorInstructores('No se pudo completar la operación de instructores.') from exc
 
 
-def listar_instructores(q=None, estado=None):
+def listar_instructores(q=None, estado=None, *, cedula=None, instructor=None, especialidad=None, socios_min=None,
+                        telefono=None, tipo_contrato=None, direccion=None, contacto_emergencia=None):
     q = (q or '').strip()
     estado = '' if estado is None else str(estado)
     if estado not in ('', '0', '1'):
         raise ValueError('Selecciona un estado válido.')
-    patron = '%' + q.replace('!', '!!').replace('%', '!%').replace('_', '!_') + '%'
+    estado = int(estado) if estado else None
+    tipo_contrato = tipo_contrato or None
+    if tipo_contrato is not None and tipo_contrato not in TIPOS_CONTRATO:
+        raise ValueError('Selecciona un tipo de contrato válido.')
+    try:
+        minimo = int(str(socios_min)) if socios_min not in (None, '') else 0
+        if not 0 <= minimo <= 2147483647:
+            raise ValueError
+    except ValueError as exc:
+        raise ValueError('Indica una cantidad mínima de socios válida.') from exc
+
+    def patron(texto):
+        return '%' + (texto or '').strip().replace('!', '!!').replace('%', '!%').replace('_', '!_') + '%'
+
+    general = patron(q)
     with _cursor() as cursor:
         cursor.execute(
             """SELECT i.id, i.usuario_id, i.cedula, i.nombre, i.apellido, i.telefono,
-                      i.especialidad, i.fecha_contratacion, i.activo, u.email AS usuario_email,
+                      i.especialidad, i.tipo_contrato, i.direccion, i.contacto_emergencia,
+                      i.fecha_contratacion, i.activo, u.email AS usuario_email,
                       COALESCE(asignados.total, 0) AS socios_asignados
                FROM instructores i
                LEFT JOIN usuarios u ON u.id = i.usuario_id
@@ -54,8 +74,18 @@ def listar_instructores(q=None, estado=None):
                WHERE (%s = '' OR CONCAT_WS(' ', i.nombre, i.apellido) LIKE %s ESCAPE '!'
                       OR i.cedula LIKE %s ESCAPE '!' OR i.especialidad LIKE %s ESCAPE '!')
                  AND (%s IS NULL OR i.activo = %s)
+                 AND i.cedula LIKE %s ESCAPE '!'
+                 AND CONCAT_WS(' ', i.nombre, i.apellido) LIKE %s ESCAPE '!'
+                 AND i.especialidad LIKE %s ESCAPE '!'
+                 AND COALESCE(i.telefono, '') LIKE %s ESCAPE '!'
+                 AND (%s IS NULL OR i.tipo_contrato = %s)
+                 AND i.direccion LIKE %s ESCAPE '!'
+                 AND i.contacto_emergencia LIKE %s ESCAPE '!'
+                 AND COALESCE(asignados.total, 0) >= %s
                ORDER BY i.apellido, i.nombre, i.id""",
-            (q, patron, patron, patron, int(estado) if estado else None, int(estado) if estado else None),
+            (q, general, general, general, estado, estado, patron(cedula), patron(instructor),
+             patron(especialidad), patron(telefono), tipo_contrato, tipo_contrato,
+             patron(direccion), patron(contacto_emergencia), minimo),
         )
         return cursor.fetchall()
 
@@ -78,17 +108,29 @@ def _estado(activo):
 
 
 def _validar(datos):
-    cedula = (datos.get('cedula') or '').strip()
-    telefono = (datos.get('telefono') or '').strip()
-    if not re.fullmatch(r'[0-9]{10}', cedula):
-        raise ErrorInstructores('La cédula debe tener 10 dígitos.')
-    if telefono and not re.fullmatch(r'09[0-9]{8}', telefono):
-        raise ErrorInstructores('El teléfono debe tener 10 dígitos y comenzar con 09.')
+    cedula = datos.get('cedula')
+    telefono = datos.get('telefono')
+    try:
+        validar_cedula_telefono(cedula, telefono)
+    except ValueError as exc:
+        raise ErrorInstructores(str(exc)) from exc
     nombre = (datos.get('nombre') or '').strip()
     apellido = (datos.get('apellido') or '').strip()
     especialidad = (datos.get('especialidad') or '').strip()
     if not (1 <= len(nombre) <= 60 and 1 <= len(apellido) <= 60 and 1 <= len(especialidad) <= 80):
         raise ErrorInstructores('Completa el nombre, apellido y especialidad con sus longitudes permitidas.')
+    tipo_contrato = datos.get('tipo_contrato')
+    if tipo_contrato not in TIPOS_CONTRATO:
+        raise ErrorInstructores('Selecciona un tipo de contrato: Civil o IESS.')
+    direccion = (datos.get('direccion') or '').strip()
+    if not 1 <= len(direccion) <= 150:
+        raise ErrorInstructores('La dirección es obligatoria y admite hasta 150 caracteres.')
+    contacto = (datos.get('contacto_emergencia') or '').strip()
+    if not 1 <= len(contacto) <= 100:
+        raise ErrorInstructores('El contacto de emergencia es obligatorio y admite hasta 100 caracteres.')
+    celular = re.search(r'(?<![0-9])09[0-9]{8}\)?$', contacto)
+    if celular is None or not any(letra.isalpha() for letra in contacto[:celular.start()]):
+        raise ErrorInstructores('Indica el nombre y celular del contacto de emergencia (09XXXXXXXX).')
     try:
         contratacion = date.fromisoformat(str(datos.get('fecha_contratacion')))
         if contratacion.year < 1000:
@@ -101,7 +143,8 @@ def _validar(datos):
             raise ValueError
     except (TypeError, ValueError) as exc:
         raise ErrorInstructores('Selecciona un usuario válido.') from exc
-    return usuario_id, cedula, nombre, apellido, telefono or None, especialidad, contratacion, _estado(datos.get('activo', 1))
+    return (usuario_id, cedula, nombre, apellido, telefono, especialidad, tipo_contrato,
+            direccion, contacto, contratacion, _estado(datos.get('activo', 1)))
 
 
 def _verificar_usuario(cursor, usuario_id):
@@ -129,8 +172,9 @@ def crear_instructor(datos):
         _verificar_usuario(cursor, valores[0])
         cursor.execute(
             """INSERT INTO instructores
-               (usuario_id, cedula, nombre, apellido, telefono, especialidad, fecha_contratacion, activo)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+               (usuario_id, cedula, nombre, apellido, telefono, especialidad, tipo_contrato,
+                direccion, contacto_emergencia, fecha_contratacion, activo)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
             valores,
         )
         return cursor.lastrowid
@@ -144,7 +188,8 @@ def actualizar_instructor(instructor_id, datos):
             _verificar_usuario(cursor, valores[0])
         cursor.execute(
             """UPDATE instructores SET usuario_id = %s, cedula = %s, nombre = %s, apellido = %s,
-               telefono = %s, especialidad = %s, fecha_contratacion = %s, activo = %s WHERE id = %s""",
+               telefono = %s, especialidad = %s, tipo_contrato = %s, direccion = %s,
+               contacto_emergencia = %s, fecha_contratacion = %s, activo = %s WHERE id = %s""",
             valores + (instructor_id,),
         )
 

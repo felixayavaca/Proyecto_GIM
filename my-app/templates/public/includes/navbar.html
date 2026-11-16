@@ -1,5 +1,13 @@
-<nav class="navbar navbar-dark bg-dark px-3" aria-label="Barra superior">
-  <span class="navbar-brand">GIM · Panel</span>
+<nav class="navbar navbar-dark bg-dark px-3 panel-navbar" aria-label="Barra superior">
+  <div class="d-flex align-items-center gap-2">
+  <button type="button" id="alternarMenu" class="btn btn-outline-light btn-sm"
+    aria-controls="panelSidebar" aria-expanded="true" aria-label="Ocultar menú">
+    <span class="navbar-toggler-icon" aria-hidden="true"></span>
+  </button>
+  <a class="navbar-brand py-0" href="{{ url_for('home.dashboard') }}">
+    <img src="{{ url_for('static', filename='gim-pro.svg') }}" alt="GIM PRO · Fitness Center" width="152" height="40">
+  </a>
+  </div>
   {% if session.get('usuario') %}
   <div class="d-flex align-items-center gap-3 text-white flex-wrap">
     <span>{{ session['usuario']['nombre'] }} <small class="text-white-50">{{ session['usuario']['rol_nombre'] }}</small></span>

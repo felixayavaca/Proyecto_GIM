@@ -1,0 +1,210 @@
+{% extends 'base_cpanel.html' %}
+{% block title %}Entrenamiento y Rutinas · GIM{% endblock %}
+
+{% macro selector(formulario, campo, etiqueta, opciones) %}
+<select form="{{ formulario }}" name="{{ campo }}" class="form-select form-select-sm"
+  aria-label="Filtrar por {{ etiqueta }}" style="min-width: 8rem">
+  <option value="">Todos</option>
+  {% for valor, texto in opciones %}
+  <option value="{{ valor }}" {% if filtros.get(campo) == valor|string %}selected{% endif %}>{{ texto }}</option>
+  {% endfor %}
+</select>
+{% endmacro %}
+{% macro botones_filtro(formulario, limpiar) %}
+<div class="d-flex gap-1">
+  <button type="submit" form="{{ formulario }}" class="btn btn-sm btn-outline-primary" data-panel-filter-submit>Filtrar</button>
+  <a class="btn btn-sm btn-outline-secondary" data-clear-filters href="{{ limpiar }}">Limpiar</a>
+</div>
+{% endmacro %}
+
+{% macro campos_comunes(id) %}
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<div class="col-md-6">
+  <label class="form-label" for="{{ id }}Socio">Socio</label>
+  <select class="form-select" id="{{ id }}Socio" name="socio_id" required>
+    <option value="">Selecciona un socio</option>
+    {% for socio in socios %}
+    <option value="{{ socio.id }}" {% if filtros.get('rutina_socio_id' if id == 'rutina' else 'valoracion_socio_id') == socio.id|string %}selected{% endif %}>
+      {{ socio.cedula }} · {{ socio.nombre }} {{ socio.apellido }}
+    </option>
+    {% endfor %}
+  </select>
+</div>
+<div class="col-md-6">
+  <label class="form-label" for="{{ id }}Instructor">Instructor</label>
+  <select class="form-select" id="{{ id }}Instructor" name="instructor_id" required {% if entrenador %}disabled{% endif %}>
+    {% if not entrenador %}<option value="">Selecciona un instructor</option>{% endif %}
+    {% for instructor in instructores %}
+    <option value="{{ instructor.id }}">{{ instructor.nombre }} {{ instructor.apellido }}{% if not instructor.activo %} · Inactivo{% endif %}</option>
+    {% endfor %}
+  </select>
+</div>
+{% endmacro %}
+
+{% macro badge_imc(imc) %}
+{% if imc < 18.5 %}
+  <span class="badge text-bg-info">Bajo peso</span>
+{% elif imc < 25 %}
+  <span class="badge text-bg-success">Normal</span>
+{% elif imc < 30 %}
+  <span class="badge text-bg-warning">Sobrepeso</span>
+{% else %}
+  <span class="badge text-bg-danger">Obesidad</span>
+{% endif %}
+{% endmacro %}
+
+{% block content %}
+<h1 class="h3 mb-3">Entrenamiento y Rutinas</h1>
+{% if disponible %}
+{% set permisos = session['usuario']['permisos'] %}
+{% set gestionar_rutinas = 'rutinas.gestionar' in permisos %}
+{% set gestionar_valoraciones = 'valoraciones.gestionar' in permisos %}
+<div class="d-flex flex-wrap align-items-end gap-2 mb-3">
+  {% if 'reportes.exportar' in permisos %}
+    <a class="btn btn-outline-success" data-export-filters href="{{ url_for('entrenadores.exportar', **filtros) }}">Exportar Excel</a>
+  {% endif %}
+</div>
+{% if (gestionar_rutinas or gestionar_valoraciones) and not instructores %}
+  <p class="alert alert-warning">{{ 'Tu cuenta de Entrenador necesita un instructor vinculado.' if entrenador else 'Registra un instructor para crear rutinas o valoraciones.' }}</p>
+{% endif %}
+
+<ul class="nav nav-tabs mb-3" role="tablist">
+  <li class="nav-item" role="presentation">
+    <button type="button" class="nav-link{{ '' if mostrar_valoraciones else ' active' }}" id="rutinas-tab"
+      role="tab" data-bs-toggle="tab" data-bs-target="#rutinas" aria-controls="rutinas"
+      aria-selected="{{ 'false' if mostrar_valoraciones else 'true' }}">Plan de Ejercicios por Cliente</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button type="button" class="nav-link{{ ' active' if mostrar_valoraciones else '' }}" id="valoraciones-tab"
+      role="tab" data-bs-toggle="tab" data-bs-target="#valoraciones" aria-controls="valoraciones"
+      aria-selected="{{ 'true' if mostrar_valoraciones else 'false' }}">Valoración Física Básica</button>
+  </li>
+</ul>
+<div class="tab-content">
+  <section id="rutinas" class="tab-pane fade{{ '' if mostrar_valoraciones else ' show active' }}" role="tabpanel" aria-labelledby="rutinas-tab" tabindex="0">
+    <form id="filtroRutinas" method="get" action="{{ url_for('entrenadores.panel') }}">
+      {% for campo, valor in filtros_valoraciones.items() %}<input type="hidden" name="{{ campo }}" value="{{ valor }}">{% endfor %}
+    </form>
+    {% if gestionar_rutinas and instructores and socios %}
+    <details class="card mb-3">
+      <summary class="card-header">Nueva rutina</summary>
+      <form class="card-body row g-3" method="post" action="{{ url_for('entrenadores.nueva_rutina', **filtros) }}">
+        {{ campos_comunes('rutina') }}
+        <div class="col-md-6">
+          <label class="form-label" for="rutinaDia">Día</label>
+          <select class="form-select" id="rutinaDia" name="dia_semana" required>
+            {% for dia in dias %}<option value="{{ dia }}" {% if dia == filtros.dia_semana %}selected{% endif %}>{{ dia }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label" for="grupoMuscular">Grupo muscular</label>
+          <input class="form-control" id="grupoMuscular" name="grupo_muscular" maxlength="60" required>
+        </div>
+        <div class="col-12">
+          <label class="form-label" for="ejerciciosDetalle">Ejercicios</label>
+          <textarea class="form-control" id="ejerciciosDetalle" name="ejercicios_detalle" rows="3" maxlength="10000" required></textarea>
+        </div>
+        <div class="col-12"><button type="submit" class="btn btn-primary">Guardar rutina</button></div>
+      </form>
+    </details>
+    {% endif %}
+    <div class="table-responsive"><table class="table table-striped align-middle">
+      <thead>
+        <tr><th>Socio</th><th>Instructor</th><th>Día</th><th>Grupo muscular</th><th>Ejercicios</th><th>Estado</th></tr>
+        <tr>
+          <td>{{ selector('filtroRutinas', 'rutina_socio_id', 'socio', opciones_socios) }}</td>
+          <td>{{ selector('filtroRutinas', 'instructor_id', 'instructor', opciones_instructores) }}</td>
+          <td>{{ selector('filtroRutinas', 'dia_semana', 'día', opciones_dias) }}</td>
+          <td><input type="search" name="grupo_muscular" form="filtroRutinas" class="form-control form-control-sm"
+            aria-label="Filtrar por grupo muscular" placeholder="Grupo muscular" value="{{ filtros.get('grupo_muscular', '') }}" style="min-width: 8rem"></td>
+          <td>{{ botones_filtro('filtroRutinas', url_for('entrenadores.panel', **filtros_valoraciones)) }}</td>
+          <td>{{ selector('filtroRutinas', 'activa', 'estado', [('1', 'Activa'), ('0', 'Inactiva')]) }}</td>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rutinas %}
+        <tr>
+          <td data-filter-value="{{ r.socio_id }}">{{ r.socio_nombre }}<br><small class="text-secondary">{{ r.cedula }}</small></td>
+          <td data-filter-value="{{ r.instructor_id }}">{{ r.instructor_nombre }}</td><td>{{ r.dia_semana }}</td><td>{{ r.grupo_muscular }}</td>
+          <td class="text-break" style="white-space: pre-wrap">{{ r.ejercicios_detalle }}</td>
+          <td data-filter-value="{{ r.activa }}">
+            {% set estado = 'Activa' if r.activa else 'Inactiva' %}
+            {% if gestionar_rutinas %}
+            <form method="post" action="{{ url_for('entrenadores.estado_rutina', rutina_id=r.id, **filtros) }}"
+              {% if r.activa %}data-confirm="¿Desactivar esta rutina?"{% endif %}>
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="activa" value="{{ 0 if r.activa else 1 }}">
+              <button type="submit" class="btn btn-{{ 'success' if r.activa else 'secondary' }} badge"
+                aria-label="{{ estado }}. {{ 'Desactivar' if r.activa else 'Activar' }} rutina de {{ r.socio_nombre }}">{{ estado }}</button>
+            </form>
+            {% else %}<span class="badge text-bg-{{ 'success' if r.activa else 'secondary' }}">{{ estado }}</span>{% endif %}
+          </td>
+        </tr>
+        {% else %}<tr><td colspan="6">No se encontraron rutinas.</td></tr>{% endfor %}
+      </tbody>
+    </table></div>
+  </section>
+
+  <section id="valoraciones" class="tab-pane fade{{ ' show active' if mostrar_valoraciones else '' }}" role="tabpanel" aria-labelledby="valoraciones-tab" tabindex="0">
+    <form id="filtroValoraciones" method="get" action="{{ url_for('entrenadores.panel') }}">
+      <input type="hidden" name="tab" value="valoraciones">
+      {% for campo, valor in filtros_rutinas.items() %}<input type="hidden" name="{{ campo }}" value="{{ valor }}">{% endfor %}
+    </form>
+    {% if gestionar_valoraciones and instructores and socios %}
+    <details class="card mb-3">
+      <summary class="card-header">Nueva valoración</summary>
+      <form class="card-body row g-3" method="post" action="{{ url_for('entrenadores.nueva_valoracion', **filtros) }}">
+        {{ campos_comunes('valoracion') }}
+        <div class="col-md-3">
+          <label class="form-label" for="valoracionFecha">Fecha</label>
+          <input class="form-control" id="valoracionFecha" type="date" name="fecha" min="1000-01-01" max="9999-12-31" required>
+        </div>
+        {% for campo, etiqueta, minimo, maximo, requerido in [
+          ('peso_kg', 'Peso (kg)', '0.01', '999.99', true),
+          ('estatura_cm', 'Estatura (cm)', '0.01', '999.99', true),
+          ('porcentaje_grasa', 'Grasa (%)', '0', '100', false)
+        ] %}
+        <div class="col-md-3">
+          <label class="form-label" for="{{ campo }}">{{ etiqueta }}</label>
+          <input class="form-control" id="{{ campo }}" name="{{ campo }}" type="number" min="{{ minimo }}" max="{{ maximo }}" step="0.01" {% if requerido %}required{% endif %}>
+        </div>
+        {% endfor %}
+        <div class="col-12">
+          <label class="form-label" for="observaciones">Observaciones</label>
+          <textarea class="form-control" id="observaciones" name="observaciones" rows="3" maxlength="10000"></textarea>
+        </div>
+        <div class="col-12"><button type="submit" class="btn btn-primary">Guardar valoración</button></div>
+      </form>
+    </details>
+    {% endif %}
+    <div class="table-responsive"><table class="table table-striped align-middle">
+      <thead>
+        <tr><th>Fecha</th><th>Socio</th><th>Instructor</th><th>Peso (kg)</th><th>Estatura (cm)</th><th>IMC (referencia adulta)</th><th>Grasa (%)</th><th>Observaciones</th></tr>
+        <tr>
+          <td><input type="date" name="valoracion_fecha" min="1000-01-01" form="filtroValoraciones" class="form-control form-control-sm"
+            aria-label="Filtrar por fecha" value="{{ filtros.get('valoracion_fecha', '') }}"></td>
+          <td>{{ selector('filtroValoraciones', 'valoracion_socio_id', 'socio', opciones_socios) }}</td>
+          <td>{{ selector('filtroValoraciones', 'valoracion_instructor_id', 'instructor', opciones_instructores) }}</td>
+          <td></td><td></td>
+          <td>{{ selector('filtroValoraciones', 'valoracion_clasificacion', 'clasificación IMC',
+            [('bajo', 'Bajo peso'), ('normal', 'Normal'), ('sobrepeso', 'Sobrepeso'), ('obesidad', 'Obesidad')]) }}</td>
+          <td></td>
+          <td>{{ botones_filtro('filtroValoraciones', url_for('entrenadores.panel', tab='valoraciones', **filtros_rutinas)) }}</td>
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in valoraciones %}
+        <tr>
+          <td>{{ v.fecha }}</td><td data-filter-value="{{ v.socio_id }}">{{ v.socio_nombre }}<br><small class="text-secondary">{{ v.cedula }}</small></td>
+          <td data-filter-value="{{ v.instructor_id }}">{{ v.instructor_nombre }}</td><td>{{ v.peso_kg }}</td><td>{{ v.estatura_cm }}</td>
+          <td data-filter-value="{{ 'bajo' if v.imc < 18.5 else ('normal' if v.imc < 25 else ('sobrepeso' if v.imc < 30 else 'obesidad')) }}">
+            {{ v.imc }} {{ badge_imc(v.imc) }}</td><td>{{ v.porcentaje_grasa if v.porcentaje_grasa is not none else '—' }}</td>
+          <td class="text-break" style="white-space: pre-wrap">{{ v.observaciones or '—' }}</td>
+        </tr>
+        {% else %}<tr><td colspan="8">No se encontraron valoraciones.</td></tr>{% endfor %}
+      </tbody>
+    </table></div>
+  </section>
+</div>
+{% endif %}
+{% endblock %}

@@ -66,6 +66,9 @@ CREATE TABLE instructores (
     telefono VARCHAR(20),
     especialidad VARCHAR(80) NOT NULL,
     fecha_contratacion DATE NOT NULL,
+    tipo_contrato ENUM('Civil','IESS') NOT NULL DEFAULT 'IESS',
+    direccion VARCHAR(150) NOT NULL,
+    contacto_emergencia VARCHAR(100) NOT NULL,
     activo TINYINT(1) NOT NULL DEFAULT 1,
     CONSTRAINT fk_instructores_usuario
         FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE SET NULL,
@@ -342,29 +345,38 @@ INSERT INTO usuarios (nombre, email, clave_hash, rol_id, activo) VALUES
 
 INSERT INTO instructores
     (usuario_id, cedula, nombre, apellido, telefono, especialidad,
-     fecha_contratacion, activo)
+     fecha_contratacion, tipo_contrato, direccion, contacto_emergencia, activo)
 VALUES
     (3, '0901000001', 'Carlos', 'Entrenador', '0993000001', 'Fuerza',
-        DATE_SUB(CURDATE(), INTERVAL 900 DAY), 1),
+     DATE_SUB(CURDATE(), INTERVAL 900 DAY), 'IESS',
+     'Cdla. Alborada, 6.ª etapa, Guayaquil', 'Ana Morales · 0994000001', 1),
     (NULL, '0901000002', 'Daniela', 'Mera', '0993000002', 'Entrenamiento funcional',
-        DATE_SUB(CURDATE(), INTERVAL 800 DAY), 1),
+     DATE_SUB(CURDATE(), INTERVAL 800 DAY), 'IESS',
+     'Cdla. Sauces 3, Guayaquil', 'Luis Mera · 0994000002', 1),
     (NULL, '0901000003', 'Esteban', 'Lara', '0993000003', 'Cardio',
-        DATE_SUB(CURDATE(), INTERVAL 700 DAY), 1),
+     DATE_SUB(CURDATE(), INTERVAL 700 DAY), 'Civil',
+     'Cdla. Los Esteros, Guayaquil', 'Paola Lara · 0994000003', 1),
     (NULL, '0901000004', 'Gabriela', 'Solís', '0993000004', 'Yoga',
-        DATE_SUB(CURDATE(), INTERVAL 600 DAY), 1),
+     DATE_SUB(CURDATE(), INTERVAL 600 DAY), 'Civil',
+     'Urdesa Central, sector Víctor Emilio Estrada, Guayaquil', 'María Solís · 0994000004', 1),
     (NULL, '0901000005', 'Héctor', 'Paz', '0993000005', 'Rehabilitación',
-        DATE_SUB(CURDATE(), INTERVAL 500 DAY), 1),
+     DATE_SUB(CURDATE(), INTERVAL 500 DAY), 'IESS',
+     'Cdla. La Garzota, 2.ª etapa, Guayaquil', 'Andrea Paz · 0994000005', 1),
     (NULL, '0901000006', 'Inés', 'Cárdenas', '0993000006', 'Nutrición deportiva',
-        DATE_SUB(CURDATE(), INTERVAL 400 DAY), 1),
+     DATE_SUB(CURDATE(), INTERVAL 400 DAY), 'Civil',
+     'Barrio Centenario, sector av. El Oro, Guayaquil', 'Diego Cárdenas · 0994000006', 1),
     (NULL, '0901000007', 'Javier', 'Cruz', '0993000007', 'Culturismo',
-        DATE_SUB(CURDATE(), INTERVAL 300 DAY), 1),
+     DATE_SUB(CURDATE(), INTERVAL 300 DAY), 'IESS',
+     'Cdla. Los Ceibos, sector av. del Bombero, Guayaquil', 'Elena Cruz · 0994000007', 1),
     (NULL, '0901000008', 'Karina', 'Vélez', '0993000008', 'Pilates',
-        DATE_SUB(CURDATE(), INTERVAL 200 DAY), 1),
+     DATE_SUB(CURDATE(), INTERVAL 200 DAY), 'Civil',
+     'Cdla. Mucho Lote 1, 4.ª etapa, Guayaquil', 'Patricia Vélez · 0994000008', 1),
     (NULL, '0901000009', 'Leonardo', 'Ríos', '0993000009', 'Boxeo',
-        DATE_SUB(CURDATE(), INTERVAL 100 DAY), 1),
+     DATE_SUB(CURDATE(), INTERVAL 100 DAY), 'IESS',
+     'Cdla. Samanes 4, Guayaquil', 'Miguel Ríos · 0994000009', 1),
     (NULL, '0901000010', 'Mónica', 'Vera', '0993000010', 'Movilidad',
-        DATE_SUB(CURDATE(), INTERVAL 50 DAY), 1);
-
+     DATE_SUB(CURDATE(), INTERVAL 50 DAY), 'IESS',
+     'Cdla. Abel Gilbert 3, Durán', 'Sofía Vera · 0994000010', 1);
 -- =====================================================
 -- 2C. SOCIOS
 -- Los primeros socios no tienen referido; los restantes

@@ -13,22 +13,35 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="row g-3">
           {% for campo, etiqueta, tipo, maximo, patron, obligatorio in [
-            ('cedula', 'Cédula', 'text', 10, '[0-9]{10}', true),
-            ('telefono', 'Teléfono', 'tel', 10, '09[0-9]{8}', false),
+            ('cedula', 'Cédula', 'text', 10, '\\d{10}', true),
+            ('telefono', 'Teléfono', 'text', 10, '09\\d{8}', true),
             ('nombre', 'Nombre', 'text', 60, '', true),
             ('apellido', 'Apellido', 'text', 60, '', true),
             ('especialidad', 'Especialidad', 'text', 80, '', true),
+            ('direccion', 'Dirección', 'text', 150, '', true),
+            ('contacto_emergencia', 'Contacto de emergencia', 'text', 100, '', true),
             ('fecha_contratacion', 'Fecha de contratación', 'date', 0, '', true)
           ] %}
             <div class="col-sm-6">
               <label class="form-label" for="{{ id }}_{{ campo }}">{{ etiqueta }}</label>
               <input class="form-control" id="{{ id }}_{{ campo }}" name="{{ campo }}" type="{{ tipo }}"
                 {% if maximo %}maxlength="{{ maximo }}"{% endif %}
-                {% if patron %}pattern="{{ patron }}" inputmode="numeric"{% endif %}
+                {% if patron %}pattern="{{ patron }}" inputmode="numeric" minlength="10"
+                  oninput="this.value = this.value.replace(/\D/g, '').slice(0, 10)"{% endif %}
+                {% if campo == 'telefono' %}placeholder="09XXXXXXXX"{% endif %}
+                {% if campo == 'contacto_emergencia' %}placeholder="Nombre · 09XXXXXXXX"{% endif %}
                 {% if tipo == 'date' %}min="1000-01-01" max="9999-12-31"{% endif %}
                 {% if obligatorio %}required{% endif %}>
             </div>
           {% endfor %}
+          <div class="col-sm-6">
+            <label class="form-label" for="{{ id }}Contrato">Tipo de contrato</label>
+            <select class="form-select" name="tipo_contrato" id="{{ id }}Contrato" required>
+              {% for tipo in tipos_contrato %}
+              <option value="{{ tipo }}" {% if tipo == 'IESS' %}selected{% endif %}>{{ tipo }}</option>
+              {% endfor %}
+            </select>
+          </div>
           <div class="col-sm-8">
             <label class="form-label" for="{{ id }}Usuario">Cuenta vinculada (opcional)</label>
             <select class="form-select" name="usuario_id" id="{{ id }}Usuario">
@@ -55,60 +68,91 @@
 </div>
 {% endmacro %}
 
+{% macro filtro_texto(campo, etiqueta) %}
+<input type="search" name="{{ campo }}" form="filtrosInstructores" class="form-control form-control-sm"
+  aria-label="Filtrar por {{ etiqueta }}" placeholder="{{ etiqueta }}" value="{{ filtros.get(campo, '') }}" style="min-width: 8rem">
+{% endmacro %}
+
 {% block content %}
 <h1 class="h3 mb-3">Instructores</h1>
 {% if disponible %}
 {% set campos_ficha = [
   ('id', 'ID'), ('cedula', 'Cédula'), ('nombre', 'Nombre'), ('apellido', 'Apellido'),
   ('telefono', 'Teléfono'), ('especialidad', 'Especialidad'),
+  ('tipo_contrato', 'Contrato'), ('direccion', 'Dirección'), ('contacto_emergencia', 'Contacto de emergencia'),
   ('fecha_contratacion', 'Fecha de contratación'), ('estado_texto', 'Estado'),
   ('usuario_email', 'Cuenta vinculada'), ('socios_asignados', 'Socios asignados')
 ] %}
 <div class="d-flex flex-wrap align-items-end gap-2 mb-3">
-  <form method="get" action="{{ url_for('instructores.lista') }}" class="d-flex flex-wrap align-items-end gap-2">
-    <div><label for="q" class="form-label">Nombre, cédula o especialidad</label>
-      <input id="q" name="q" type="search" class="form-control" value="{{ q }}"></div>
-    <div><label for="estado" class="form-label">Estado</label>
-      <select id="estado" name="estado" class="form-select">
-        <option value="">Todos</option>
-        <option value="1" {% if estado == '1' %}selected{% endif %}>Activo</option>
-        <option value="0" {% if estado == '0' %}selected{% endif %}>Inactivo</option>
-      </select></div>
-    <button class="btn btn-outline-primary">Filtrar</button>
-  </form>
   {% if 'reportes.exportar' in session['usuario']['permisos'] %}
-    <a class="btn btn-outline-success" href="{{ url_for('instructores.exportar', q=q, estado=estado) }}">Exportar Excel</a>
+    <a class="btn btn-outline-success" data-export-filters href="{{ url_for('instructores.exportar', **filtros) }}">Exportar Excel</a>
   {% endif %}
   {% if gestionar %}
     <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#nuevoInstructor">Nuevo instructor</button>
   {% endif %}
 </div>
+<form id="filtrosInstructores" method="get" action="{{ url_for('instructores.lista') }}"></form>
 <div class="table-responsive">
   <table class="table table-striped align-middle">
-    <thead><tr><th>Cédula</th><th>Instructor</th><th>Especialidad</th><th>Estado</th><th>Socios asignados</th><th>Acciones</th></tr></thead>
+    <thead><tr>
+      <th>Cédula</th><th>Instructor</th><th>Teléfono</th><th>Especialidad</th><th>Contrato</th>
+      <th>Dirección</th><th>Contacto de emergencia</th><th>Estado</th><th>Socios asignados</th><th>Acciones</th>
+    </tr>
+    <tr>
+      {% for campo, etiqueta in [('cedula', 'Cédula'), ('instructor', 'Instructor'), ('telefono', 'Teléfono'), ('especialidad', 'Especialidad')] %}
+      <td>{{ filtro_texto(campo, etiqueta) }}</td>
+      {% endfor %}
+      <td><select name="tipo_contrato" form="filtrosInstructores" class="form-select form-select-sm"
+        aria-label="Filtrar por contrato" style="min-width: 7rem">
+        <option value="">Todos</option>
+        {% for tipo in tipos_contrato %}
+        <option value="{{ tipo }}" {% if filtros.get('tipo_contrato') == tipo %}selected{% endif %}>{{ tipo }}</option>
+        {% endfor %}
+      </select></td>
+      <td>{{ filtro_texto('direccion', 'Dirección') }}</td>
+      <td>{{ filtro_texto('contacto_emergencia', 'Contacto') }}</td>
+      <td><select name="estado" form="filtrosInstructores" class="form-select form-select-sm" aria-label="Filtrar por estado" style="min-width: 7rem">
+        {% for valor, etiqueta in [('', 'Todos'), ('1', 'Activo'), ('0', 'Inactivo')] %}
+        <option value="{{ valor }}" {% if filtros.get('estado', '') == valor %}selected{% endif %}>{{ etiqueta }}</option>
+        {% endfor %}
+      </select></td>
+      <td><input type="number" min="0" max="2147483647" name="socios_min" form="filtrosInstructores" class="form-control form-control-sm" data-filter-mode="min"
+        aria-label="Mínimo de socios asignados" placeholder="Mín." value="{{ filtros.get('socios_min', '') }}" style="min-width: 5rem"></td>
+      <td><div class="d-flex gap-1">
+        <button type="submit" form="filtrosInstructores" class="btn btn-sm btn-outline-primary" data-panel-filter-submit>Filtrar</button>
+        <a class="btn btn-sm btn-outline-secondary" data-clear-filters href="{{ url_for('instructores.lista') }}">Limpiar</a>
+      </div></td>
+    </tr></thead>
     <tbody>
       {% for i in instructores %}
       {% set estado_texto = 'Activo' if i.activo else 'Inactivo' %}
       {% set ficha = dict(i, fecha_contratacion=i.fecha_contratacion|string, estado_texto=estado_texto) %}
       <tr>
-        <td>{{ i.cedula }}</td><td>{{ i.nombre }} {{ i.apellido }}</td><td>{{ i.especialidad }}</td>
-        <td><span class="badge text-bg-{{ 'success' if i.activo else 'secondary' }}">{{ estado_texto }}</span></td>
+        <td>{{ i.cedula }}</td><td>{{ i.nombre }} {{ i.apellido }}</td><td>{{ i.telefono or '—' }}</td>
+        <td>{{ i.especialidad }}</td><td>{{ i.tipo_contrato }}</td><td>{{ i.direccion }}</td><td>{{ i.contacto_emergencia }}</td>
+        <td data-filter-value="{{ i.activo }}">
+          {% if gestionar %}
+          <form method="post" action="{{ url_for('instructores.estado', instructor_id=i.id, **filtros) }}"
+            {% if i.activo %}data-confirm="¿Desactivar a {{ i.nombre }} {{ i.apellido }}?"{% endif %}>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="activo" value="{{ 0 if i.activo else 1 }}">
+            <button type="submit" class="btn btn-{{ 'success' if i.activo else 'secondary' }} badge"
+              title="{{ 'Desactivar' if i.activo else 'Activar' }}"
+              aria-label="{{ estado_texto }}. {{ 'Desactivar' if i.activo else 'Activar' }} a {{ i.nombre }} {{ i.apellido }}">{{ estado_texto }}</button>
+          </form>
+          {% else %}<span class="badge text-bg-{{ 'success' if i.activo else 'secondary' }}">{{ estado_texto }}</span>{% endif %}
+        </td>
         <td>{{ i.socios_asignados }}</td>
         <td><div class="d-flex flex-wrap gap-2">
           <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#fichaInstructor" data-instructor="{{ ficha|tojson|forceescape }}">Ver ficha</button>
           {% if gestionar %}
           <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editarInstructor" data-instructor="{{ ficha|tojson|forceescape }}"
-            data-url="{{ url_for('instructores.editar', instructor_id=i.id, q=q, estado=estado) }}">Editar</button>
-          <form method="post" action="{{ url_for('instructores.estado', instructor_id=i.id, q=q, estado=estado) }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="activo" value="{{ 0 if i.activo else 1 }}">
-            <button type="submit" class="btn btn-sm btn-outline-{{ 'danger' if i.activo else 'success' }}">{{ 'Desactivar' if i.activo else 'Activar' }}</button>
-          </form>
+            data-url="{{ url_for('instructores.editar', instructor_id=i.id, **filtros) }}">Editar</button>
           {% endif %}
         </div></td>
       </tr>
       {% else %}
-      <tr><td colspan="6" class="text-center text-secondary">No se encontraron instructores.</td></tr>
+      <tr><td colspan="10" class="text-center text-secondary">No se encontraron instructores.</td></tr>
       {% endfor %}
     </tbody>
   </table>
@@ -127,7 +171,7 @@
   </div></div>
 </div>
 {% if gestionar %}
-  {{ modal_formulario('nuevoInstructor', 'Nuevo instructor', url_for('instructores.crear', q=q, estado=estado), usuarios) }}
+  {{ modal_formulario('nuevoInstructor', 'Nuevo instructor', url_for('instructores.crear', **filtros), usuarios) }}
   {{ modal_formulario('editarInstructor', 'Editar instructor', '', usuarios) }}
 {% endif %}
 <script>
@@ -149,7 +193,8 @@
       opcion.dataset.vinculado = '';
       cuenta.add(opcion);
     }
-    for (const campo of ['usuario_id', 'cedula', 'nombre', 'apellido', 'telefono', 'especialidad', 'fecha_contratacion', 'activo']) {
+    for (const campo of ['usuario_id', 'cedula', 'nombre', 'apellido', 'telefono', 'especialidad',
+      'tipo_contrato', 'direccion', 'contacto_emergencia', 'fecha_contratacion', 'activo']) {
       formulario.elements.namedItem(campo).value = instructor[campo] ?? '';
     }
   });

@@ -1,0 +1,118 @@
+{% extends 'base_cpanel.html' %}
+{% block title %}Planes · GIM{% endblock %}
+{% macro formulario(id, titulo, accion) %}
+<div class="modal fade" id="{{ id }}" tabindex="-1" aria-labelledby="{{ id }}Titulo" aria-hidden="true">
+  <div class="modal-dialog"><div class="modal-content">
+    <form method="post" action="{{ accion }}">
+      <div class="modal-header"><h2 class="modal-title fs-5" id="{{ id }}Titulo">{{ titulo }}</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button></div>
+      <div class="modal-body">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="mb-3"><label class="form-label" for="{{ id }}Nombre">Nombre</label>
+          <input class="form-control" id="{{ id }}Nombre" name="nombre" maxlength="50" required></div>
+        <div class="mb-3"><label class="form-label" for="{{ id }}Categoria">Categoría</label>
+          <select class="form-select" id="{{ id }}Categoria" name="categoria" required>
+            {% for c in categorias %}<option value="{{ c }}">{{ 'Básico' if c == 'Basico' else c }}</option>{% endfor %}
+          </select></div>
+        <div class="mb-3"><label class="form-label" for="{{ id }}Precio">Precio</label>
+          <input class="form-control" id="{{ id }}Precio" name="precio" type="number" min="0" max="999999.99" step="0.01" required></div>
+        <div class="mb-3"><label class="form-label" for="{{ id }}Dias">Duración (días)</label>
+          <input class="form-control" id="{{ id }}Dias" name="duracion_dias" type="number" min="1" max="2147483647" step="1" required></div>
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" id="{{ id }}Referido" name="es_plan_referido" value="1">
+          <label class="form-check-label" for="{{ id }}Referido">Plan referido</label>
+        </div>
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-primary">Guardar</button></div>
+    </form>
+  </div></div>
+</div>
+{% endmacro %}
+{% macro selector(campo, etiqueta, opciones) %}
+<select name="{{ campo }}" form="filtroPlanes" class="form-select form-select-sm"
+  aria-label="Filtrar por {{ etiqueta }}" style="min-width: 7rem">
+  <option value="">Todos</option>
+  {% for valor, texto in opciones %}
+  <option value="{{ valor }}" {% if filtros.get(campo) == valor %}selected{% endif %}>{{ texto }}</option>
+  {% endfor %}
+</select>
+{% endmacro %}
+{% block content %}
+<h1 class="h3 mb-3">Planes</h1>
+{% if disponible %}
+{% set gestionar = 'planes.gestionar' in session['usuario']['permisos'] %}
+<div class="d-flex flex-wrap align-items-end gap-2 mb-3">
+  {% if 'reportes.exportar' in session['usuario']['permisos'] %}
+    <a class="btn btn-outline-success" data-export-filters href="{{ url_for('planes.exportar', **filtros) }}">Exportar Excel</a>
+  {% endif %}
+  {% if gestionar %}<button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#nuevoPlan">Nuevo plan</button>{% endif %}
+</div>
+<form id="filtroPlanes" method="get" action="{{ url_for('planes.lista') }}"></form>
+<div class="table-responsive"><table class="table table-striped align-middle">
+  <thead>
+    <tr><th>Nombre</th><th>Categoría</th><th>Tipo / Referido</th><th>Precio</th><th>Duración (días)</th><th>Estado</th><th>Ventas</th>{% if gestionar %}<th>Acciones</th>{% endif %}</tr>
+    <tr>
+      <td><input type="search" name="q" form="filtroPlanes" class="form-control form-control-sm"
+        aria-label="Filtrar por nombre" placeholder="Nombre" value="{{ filtros.get('q', '') }}" style="min-width: 8rem"></td>
+      <td><select name="categoria" form="filtroPlanes" class="form-select form-select-sm" aria-label="Filtrar por categoría" style="min-width: 7rem">
+        <option value="">Todas</option>
+        {% for c in categorias %}<option value="{{ c }}" {% if filtros.get('categoria') == c %}selected{% endif %}>{{ 'Básico' if c == 'Basico' else c }}</option>{% endfor %}
+      </select></td>
+      <td>{{ selector('referido', 'tipo de plan', [('1', 'Plan Referido'), ('0', 'Normal')]) }}</td>
+      <td><input type="number" name="precio_max" form="filtroPlanes" min="0" max="999999.99" step="0.01" data-filter-mode="max"
+        class="form-control form-control-sm" aria-label="Precio máximo" placeholder="Máx." value="{{ filtros.get('precio_max', '') }}" style="min-width: 5rem"></td>
+      <td><input type="number" name="duracion" form="filtroPlanes" min="1" max="2147483647"
+        class="form-control form-control-sm" aria-label="Duración exacta en días" placeholder="Días" value="{{ filtros.get('duracion', '') }}" style="min-width: 5rem"></td>
+      <td>{{ selector('estado', 'estado', [('1', 'Activo'), ('0', 'Inactivo')]) }}</td>
+      <td><div class="d-flex gap-1">
+        <button type="submit" form="filtroPlanes" class="btn btn-sm btn-outline-primary" data-panel-filter-submit>Filtrar</button>
+        <a class="btn btn-sm btn-outline-secondary" data-clear-filters href="{{ url_for('planes.lista') }}">Limpiar</a>
+      </div></td>
+      {% if gestionar %}<td></td>{% endif %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for p in planes %}
+    <tr>
+      <td>{{ p.nombre }}</td>
+      <td data-filter-value="{{ p.categoria }}"><span class="badge text-bg-{{ {'Basico':'secondary', 'Pro':'primary', 'Premium':'warning', 'Platinum':'dark'}[p.categoria] }}">{{ 'Básico' if p.categoria == 'Basico' else p.categoria }}</span></td>
+      <td data-filter-value="{{ p.es_plan_referido }}">{% if p.es_plan_referido %}<span class="badge text-bg-success">Plan Referido</span>{% else %}Normal{% endif %}</td>
+      <td data-filter-value="{{ p.precio }}">${{ '%.2f'|format(p.precio) }}</td><td>{{ p.duracion_dias }}</td>
+      <td data-filter-value="{{ p.activo }}">
+        {% if gestionar %}
+        <form method="post" action="{{ url_for('planes.estado', plan_id=p.id, **filtros) }}"
+          {% if p.activo %}data-confirm="¿Desactivar el plan {{ p.nombre }}?"{% endif %}>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="activo" value="{{ 0 if p.activo else 1 }}">
+          <button type="submit" class="btn btn-{{ 'success' if p.activo else 'secondary' }} badge"
+            aria-label="{{ 'Activo. Desactivar' if p.activo else 'Inactivo. Activar' }} {{ p.nombre }}">{{ 'Activo' if p.activo else 'Inactivo' }}</button>
+        </form>
+        {% else %}<span class="badge text-bg-{{ 'success' if p.activo else 'secondary' }}">{{ 'Activo' if p.activo else 'Inactivo' }}</span>{% endif %}
+      </td><td>{{ p.total_ventas }}</td>
+      {% if gestionar %}<td><div class="d-flex gap-2 flex-wrap">
+        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editarPlan"
+          data-url="{{ url_for('planes.editar', plan_id=p.id, **filtros) }}" data-plan="{{ p|tojson|forceescape }}">Editar</button>
+      </div></td>{% endif %}
+    </tr>
+    {% else %}<tr><td colspan="{{ 8 if gestionar else 7 }}">No se encontraron planes.</td></tr>{% endfor %}
+  </tbody>
+</table></div>
+{% if gestionar %}
+  {{ formulario('nuevoPlan', 'Nuevo plan', url_for('planes.crear', **filtros)) }}
+  {{ formulario('editarPlan', 'Editar plan', '') }}
+  <script>
+    document.getElementById('editarPlan').addEventListener('show.bs.modal', function (evento) {
+      const boton = evento.relatedTarget;
+      const plan = JSON.parse(boton.dataset.plan);
+      const form = this.querySelector('form');
+      form.action = boton.dataset.url;
+      for (const campo of ['nombre', 'categoria', 'precio', 'duracion_dias']) {
+        form.elements.namedItem(campo).value = plan[campo];
+      }
+      form.elements.namedItem('es_plan_referido').checked = Boolean(plan.es_plan_referido);
+    });
+  </script>
+{% endif %}
+{% endif %}
+{% endblock %}

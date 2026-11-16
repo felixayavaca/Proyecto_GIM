@@ -1,15 +1,17 @@
 {% extends 'base_cpanel.html' %}
 {% block title %}Asistencias · GIM{% endblock %}
 {% block content %}
-{% set registrar = 'asistencias.registrar' in session['usuario']['permisos'] %}
+{% set permisos = session['usuario']['permisos'] %}
+{% set registrar = 'asistencias.registrar' in permisos %}
+{% set admin = session['usuario']['rol_nombre'] == 'Admin' %}
 <h1 class="h3 mb-3">Control de asistencias</h1>
 {% if disponible %}
 {% if registrar %}
 <section class="card mb-4"><div class="card-body">
   <h2 class="h5">Registrar entrada</h2>
-  <form method="post" action="{{ url_for('asistencias.registrar') }}" class="row g-3 align-items-end">
+  <form method="post" action="{{ url_for('asistencias.entrada', **filtros) }}" class="row g-3 align-items-end">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <div class="col-12 col-md-9"><label class="form-label" for="socio_id">Socio</label>
+    <div class="col-12 col-md-9"><label class="form-label" for="socio_id">Socio activo</label>
       <select id="socio_id" name="socio_id" class="form-select" required {% if not socios %}disabled{% endif %}>
         <option value="">Selecciona un socio</option>
         {% for socio in socios %}<option value="{{ socio.id }}">{{ socio.cedula }} · {{ socio.nombre }} {{ socio.apellido }}</option>{% endfor %}
@@ -17,33 +19,102 @@
     </div>
     <div class="col-12 col-md-3"><button type="submit" class="btn btn-primary w-100" {% if not socios %}disabled{% endif %}>Marcar Entrada</button></div>
   </form>
-  {% if not socios %}<p class="text-secondary mt-2 mb-0">No hay socios registrados.</p>{% endif %}
-  <p class="small text-secondary mt-2 mb-0">Las entradas sin membresía activa también se registran y muestran una advertencia.</p>
+  {% if not socios %}<p class="text-secondary mt-2 mb-0">No hay socios activos.</p>{% endif %}
 </div></section>
 {% endif %}
-<h2 class="h5">Últimas 100 entradas</h2>
+
+<div class="d-flex flex-wrap align-items-end gap-2 mb-3">
+  {% if 'reportes.exportar' in permisos %}
+    <a class="btn btn-outline-success" data-export-filters href="{{ url_for('asistencias.exportar', **filtros) }}">Exportar Excel</a>
+  {% endif %}
+</div>
+
+<form id="filtroAsistencias" method="get" action="{{ url_for('asistencias.lista') }}"></form>
 <div class="table-responsive"><table class="table table-striped align-middle">
-  <thead><tr><th scope="col">Fecha y hora</th><th scope="col">Cédula</th><th scope="col">Socio</th><th scope="col">Registrado por</th>{% if registrar %}<th scope="col">Acciones</th>{% endif %}</tr></thead>
+  <thead><tr>
+    <th scope="col">Fecha</th><th scope="col">Hora entrada</th><th scope="col">Hora salida</th><th scope="col">Estancia</th>
+    <th scope="col">Cédula</th><th scope="col">Socio</th><th scope="col">Registrado por</th>
+    {% if registrar or admin %}<th scope="col">Acciones</th>{% endif %}
+  </tr>
+  <tr>
+    <td><input type="date" name="fecha_entrada" min="1000-01-01" form="filtroAsistencias"
+      class="form-control form-control-sm" aria-label="Filtrar por fecha de entrada" value="{{ filtros.get('fecha_entrada', '') }}"></td>
+    <td><input type="time" step="1" name="hora_entrada" form="filtroAsistencias" class="form-control form-control-sm"
+      aria-label="Filtrar por hora de entrada" value="{{ filtros.get('hora_entrada', '') }}"></td>
+    <td><input type="time" step="1" name="hora_salida" form="filtroAsistencias" class="form-control form-control-sm mb-1"
+      aria-label="Filtrar por hora de salida" value="{{ filtros.get('hora_salida', '') }}" data-filter-mode="time">
+    <select name="estado_estancia" form="filtroAsistencias" class="form-select form-select-sm"
+      aria-label="Filtrar por estado de estancia" style="min-width: 8rem">
+      {% for valor, texto in [('', 'Todos'), ('en_gimnasio', 'En gimnasio'), ('finalizada', 'Finalizada')] %}
+      <option value="{{ valor }}" {% if filtros.get('estado_estancia', '') == valor %}selected{% endif %}>{{ texto }}</option>
+      {% endfor %}
+    </select></td>
+    <td><div class="d-flex gap-1">
+      <button type="submit" form="filtroAsistencias" class="btn btn-sm btn-outline-primary" data-panel-filter-submit>Filtrar</button>
+      <a class="btn btn-sm btn-outline-secondary" data-clear-filters href="{{ url_for('asistencias.lista') }}">Limpiar</a>
+    </div></td>
+    {% for campo, etiqueta in [('cedula', 'Cédula'), ('socio', 'Socio')] %}
+    <td><input type="search" name="{{ campo }}" form="filtroAsistencias" class="form-control form-control-sm"
+      aria-label="Filtrar por {{ etiqueta }}" placeholder="{{ etiqueta }}" value="{{ filtros.get(campo, '') }}" style="min-width: 7rem"></td>
+    {% endfor %}
+    <td><select name="registrado_por" form="filtroAsistencias" class="form-select form-select-sm"
+      aria-label="Filtrar por usuario que registró" style="min-width: 8rem">
+      <option value="">Todos</option>
+      {% for usuario in usuarios %}
+      <option value="{{ usuario.id }}" {% if filtros.get('registrado_por') == usuario.id|string %}selected{% endif %}>{{ usuario.nombre }}</option>
+      {% endfor %}
+    </select></td>
+    {% if registrar or admin %}<td></td>{% endif %}
+  </tr></thead>
   <tbody>
-    {% for asistencia in asistencias %}
-    <tr><td>{{ asistencia.fecha_hora }}</td><td>{{ asistencia.cedula }}</td><td>{{ asistencia.socio_nombre }}</td><td>{{ asistencia.registrado_por or 'Usuario no disponible' }}</td>
-      {% if registrar %}<td><button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#eliminarAsistencia" data-url="{{ url_for('asistencias.eliminar', asistencia_id=asistencia.id) }}" data-detalle="{{ asistencia.socio_nombre }} · {{ asistencia.fecha_hora }}">Eliminar</button></td>{% endif %}
+    {% for a in asistencias %}
+    <tr>
+      <td>{{ a.fecha_entrada.strftime('%Y-%m-%d') }}</td><td>{{ a.fecha_entrada.strftime('%H:%M:%S') }}</td>
+      <td data-filter-value="{{ 'en_gimnasio' if a.fecha_salida is none else 'finalizada' }}"
+        data-filter-time="{{ a.fecha_salida.strftime('%H:%M:%S') if a.fecha_salida else '' }}">
+        {% if a.fecha_salida is none %}<span class="badge text-bg-success">En gimnasio</span>{% else %}{{ a.fecha_salida.strftime('%H:%M:%S') }}{% endif %}
+      </td>
+      <td>{{ a.minutos_estancia }} min</td><td>{{ a.cedula }}</td><td>{{ a.socio_nombre }}</td>
+      <td data-filter-value="{{ a.usuario_id or '' }}">{{ a.registrado_por or 'Usuario no disponible' }}</td>
+      {% if registrar or admin %}
+      <td><div class="d-flex flex-wrap gap-2">
+        {% if registrar and a.fecha_salida is none %}
+        <form method="post" action="{{ url_for('asistencias.salida', asistencia_id=a.id, **filtros) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="btn btn-sm btn-outline-primary">Marcar Salida</button>
+        </form>
+        {% endif %}
+        {% if admin %}
+        <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#eliminarAsistencia"
+          data-url="{{ url_for('asistencias.eliminar', asistencia_id=a.id, **filtros) }}"
+          data-detalle="{{ a.socio_nombre }} · {{ a.fecha_entrada }}">Eliminar</button>
+        {% endif %}
+      </div></td>
+      {% endif %}
     </tr>
-    {% else %}<tr><td colspan="{{ 5 if registrar else 4 }}" class="text-center text-secondary">No hay asistencias registradas.</td></tr>{% endfor %}
+    {% else %}<tr><td colspan="{{ 8 if registrar or admin else 7 }}" class="text-center text-secondary">No se encontraron asistencias.</td></tr>{% endfor %}
   </tbody>
 </table></div>
-{% if registrar %}
-<div class="modal fade" id="eliminarAsistencia" tabindex="-1" aria-labelledby="eliminarTitulo" aria-hidden="true"><div class="modal-dialog"><div class="modal-content">
-<form method="post">
-  <div class="modal-header"><h2 class="modal-title fs-5" id="eliminarTitulo">Eliminar asistencia</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button></div>
-  <div class="modal-body"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><p>¿Eliminar la entrada de <strong id="detalleEliminar"></strong>?</p><p class="text-danger">Esta acción es permanente.</p></div>
-  <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-danger">Eliminar</button></div>
-</form></div></div></div>
+
+{% if admin %}
+<div class="modal fade" id="eliminarAsistencia" tabindex="-1" aria-labelledby="eliminarTitulo" aria-hidden="true">
+  <div class="modal-dialog"><div class="modal-content">
+    <form method="post">
+      <div class="modal-header"><h2 class="modal-title fs-5" id="eliminarTitulo">Eliminar asistencia</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button></div>
+      <div class="modal-body"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <p>¿Eliminar la entrada de <strong id="detalleEliminar"></strong>?</p>
+        <p class="text-danger">Esta acción es permanente.</p></div>
+      <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="submit" class="btn btn-danger">Eliminar</button></div>
+    </form>
+  </div></div>
+</div>
 <script>
-document.getElementById('eliminarAsistencia').addEventListener('show.bs.modal', function (event) {
-  this.querySelector('form').action = event.relatedTarget.dataset.url;
-  document.getElementById('detalleEliminar').textContent = event.relatedTarget.dataset.detalle;
-});
+  document.getElementById('eliminarAsistencia').addEventListener('show.bs.modal', function (evento) {
+    this.querySelector('form').action = evento.relatedTarget.dataset.url;
+    document.getElementById('detalleEliminar').textContent = evento.relatedTarget.dataset.detalle;
+  });
 </script>
 {% endif %}
 {% endif %}

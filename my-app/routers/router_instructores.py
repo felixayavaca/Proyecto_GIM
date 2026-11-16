@@ -2,7 +2,7 @@ from flask import Blueprint, abort, flash, redirect, render_template, request, s
 
 from controllers.exportar_excel import generar_excel
 from controllers.funciones_instructores import (
-    ErrorInstructores, actualizar_instructor, cambiar_estado_instructor,
+    TIPOS_CONTRATO, ErrorInstructores, actualizar_instructor, cambiar_estado_instructor,
     crear_instructor, listar_instructores, listar_usuarios_entrenadores,
 )
 from routers.router_login import login_requerido, requiere_permiso, validar_csrf
@@ -13,7 +13,11 @@ GESTIONAR = 'instructores.gestionar'
 
 
 def _filtros():
-    return request.args.get('q', '').strip(), request.args.get('estado', '')
+    return {campo: request.args[campo] for campo in (
+        'q', 'estado', 'cedula', 'instructor', 'telefono', 'especialidad',
+        'tipo_contrato', 'direccion', 'contacto_emergencia', 'socios_min',
+    )
+            if request.args.get(campo)}
 
 
 @instructores_bp.get('/instructores')
@@ -23,9 +27,9 @@ def lista():
     gestionar = GESTIONAR in permisos
     if not gestionar and 'socios.ver' not in permisos:
         abort(403)
-    q, estado = _filtros()
+    filtros = _filtros()
     try:
-        instructores = listar_instructores(q, estado)
+        instructores = listar_instructores(**filtros)
         usuarios = listar_usuarios_entrenadores() if gestionar else []
     except ValueError as exc:
         abort(400, description=str(exc))
@@ -34,7 +38,7 @@ def lista():
         return render_template('instructores/lista_instructores.html', disponible=False), 503
     return render_template(
         'instructores/lista_instructores.html', disponible=True, instructores=instructores,
-        usuarios=usuarios, q=q, estado=estado, gestionar=gestionar,
+        usuarios=usuarios, filtros=filtros, gestionar=gestionar, tipos_contrato=TIPOS_CONTRATO,
     )
 
 
@@ -45,8 +49,7 @@ def _guardar(operacion, mensaje, *args):
         flash(mensaje, 'success')
     except ErrorInstructores as exc:
         flash(str(exc), 'danger')
-    q, estado = _filtros()
-    return redirect(url_for('instructores.lista', q=q, estado=estado if estado in ('0', '1') else ''))
+    return redirect(url_for('instructores.lista', **_filtros()))
 
 
 @instructores_bp.post('/instructores/crear')
@@ -72,15 +75,17 @@ def estado(instructor_id):
 @requiere_permiso('reportes.exportar')
 def exportar():
     try:
-        instructores = listar_instructores(*_filtros())
+        instructores = listar_instructores(**_filtros())
     except ValueError as exc:
         abort(400, description=str(exc))
     except ErrorInstructores as exc:
         abort(503, description=str(exc))
     encabezados = ('ID', 'Cédula', 'Nombre', 'Apellido', 'Teléfono', 'Especialidad',
+                   'Contrato', 'Dirección', 'Contacto de emergencia',
                    'Fecha de contratación', 'Estado', 'Socios asignados', 'Cuenta vinculada')
     filas = (
         (i['id'], i['cedula'], i['nombre'], i['apellido'], i['telefono'], i['especialidad'],
+         i['tipo_contrato'], i['direccion'], i['contacto_emergencia'],
          i['fecha_contratacion'], 'Activo' if i['activo'] else 'Inactivo',
          i['socios_asignados'], i['usuario_email'])
         for i in instructores

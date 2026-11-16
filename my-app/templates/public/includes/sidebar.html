@@ -1,11 +1,12 @@
 {% set permisos = session.get('usuario', {}).get('permisos', []) %}
-<aside class="col-12 col-md-3 col-lg-2 bg-body-tertiary border-end p-3">
+<aside id="panelSidebar" class="panel-sidebar bg-body-tertiary">
 <nav class="nav nav-pills flex-column gap-1" aria-label="Menú principal">
   {% for ruta, etiqueta, permitidos in [
     ('/dashboard', 'Dashboard', ['reportes.ver']),
-    ('/socios', 'Socios', ['socios.ver', 'socios.gestionar']),
+    ('/socios', 'Socios y Pagos', ['socios.ver']),
     ('/instructores', 'Instructores', ['instructores.gestionar', 'socios.ver']),
-    ('/membresias', 'Membresías', ['membresias.ver', 'membresias.gestionar']),
+    ('/entrenadores', 'Entrenamiento y Rutinas', ['rutinas.gestionar', 'valoraciones.gestionar', 'socios.ver']),
+    ('/planes', 'Planes', ['planes.ver']),
     ('/asistencias', 'Asistencias', ['asistencias.ver', 'asistencias.registrar'])
   ] %}
     {% if permitidos | select('in', permisos) | list %}
