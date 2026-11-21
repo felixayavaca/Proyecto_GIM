@@ -98,11 +98,11 @@
         </div>
         <div class="col-md-6">
           <label class="form-label" for="grupoMuscular">Grupo muscular</label>
-          <input class="form-control" id="grupoMuscular" name="grupo_muscular" maxlength="60" required>
+          <input class="form-control" id="grupoMuscular" name="grupo_muscular" placeholder="Ej: Pecho y Tríceps" maxlength="60" required>
         </div>
         <div class="col-12">
           <label class="form-label" for="ejerciciosDetalle">Ejercicios</label>
-          <textarea class="form-control" id="ejerciciosDetalle" name="ejercicios_detalle" rows="3" maxlength="10000" required></textarea>
+          <textarea class="form-control" id="ejerciciosDetalle" name="ejercicios_detalle" placeholder="Ej: Press banca 4x12, Aperturas 3x15" rows="3" maxlength="10000" required></textarea>
         </div>
         <div class="col-12"><button type="submit" class="btn btn-primary">Guardar rutina</button></div>
       </form>
@@ -160,13 +160,13 @@
           <input class="form-control" id="valoracionFecha" type="date" name="fecha" min="1000-01-01" max="9999-12-31" required>
         </div>
         {% for campo, etiqueta, minimo, maximo, requerido in [
-          ('peso_kg', 'Peso (kg)', '0.01', '999.99', true),
-          ('estatura_cm', 'Estatura (cm)', '0.01', '999.99', true),
+          ('peso_kg', 'Peso (kg)', '25', '300', true),
+          ('estatura_cm', 'Estatura (cm)', '100', '250', true),
           ('porcentaje_grasa', 'Grasa (%)', '0', '100', false)
         ] %}
         <div class="col-md-3">
           <label class="form-label" for="{{ campo }}">{{ etiqueta }}</label>
-          <input class="form-control" id="{{ campo }}" name="{{ campo }}" type="number" min="{{ minimo }}" max="{{ maximo }}" step="0.01" {% if requerido %}required{% endif %}>
+          <input class="form-control" id="{{ campo }}" name="{{ campo }}" placeholder="{{ {'peso_kg': 'Ej: 72.5', 'estatura_cm': 'Ej: 175', 'porcentaje_grasa': 'Ej: 18.5'}[campo] }}" type="number" min="{{ minimo }}" max="{{ maximo }}" step="0.01" {% if requerido %}required{% endif %}>
         </div>
         {% endfor %}
         <div class="col-12">
