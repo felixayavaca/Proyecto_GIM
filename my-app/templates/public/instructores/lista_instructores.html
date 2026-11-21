@@ -29,6 +29,10 @@
                 {% if patron %}pattern="{{ patron }}" inputmode="numeric" minlength="10"
                   oninput="this.value = this.value.replace(/\D/g, '').slice(0, 10)"{% endif %}
                 {% if campo == 'telefono' %}placeholder="09XXXXXXXX"{% endif %}
+                {% if campo in ('nombre', 'apellido') %}
+                  pattern="[A-Za-zÁÉÍÓÚáéíóúÑñÜü\s]{2,60}"
+                  oninput="this.value = this.value.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñÜü\s]/g, '')"
+                {% endif %}
                 {% if campo == 'contacto_emergencia' %}placeholder="Nombre · 09XXXXXXXX"{% endif %}
                 {% if tipo == 'date' %}min="1000-01-01" max="9999-12-31"{% endif %}
                 {% if obligatorio %}required{% endif %}>

@@ -203,8 +203,9 @@ def _validar(datos, socio_id=None):
     if genero not in GENEROS:
         raise ValueError('Selecciona un género válido.')
     nombre, apellido, email = (datos.get(campo, '').strip() for campo in ('nombre', 'apellido', 'email'))
-    if not (1 <= len(nombre) <= 60 and 1 <= len(apellido) <= 60):
-        raise ValueError('El nombre y apellido son obligatorios y admiten hasta 60 caracteres.')
+    for campo, valor in (('nombre', nombre), ('apellido', apellido)):
+        if not re.fullmatch(r'[A-Za-zÁÉÍÓÚáéíóúÑñÜü\s]{2,60}', valor):
+            raise ValueError(f'El {campo} debe tener entre 2 y 60 caracteres, solo letras y espacios.')
     if email and (len(email) > 120 or not re.fullmatch(r'[^\s@]+@[^\s@]+\.[^\s@]+', email)):
         raise ValueError('El correo electrónico no es válido.')
     nacimiento = datos.get('fecha_nacimiento') or None

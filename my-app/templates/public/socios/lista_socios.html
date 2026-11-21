@@ -1,5 +1,6 @@
 {% extends 'base_cpanel.html' %}
 {% block title %}Socios y Pagos · GatutoFit{% endblock %}
+{% set etiquetas_genero = {'M': 'Masculino', 'F': 'Femenino', 'Otro': 'Otro'} %}
 {% macro formulario_socio(id, titulo, accion) %}
 <div class="modal fade" id="{{ id }}" tabindex="-1" aria-labelledby="{{ id }}Titulo" aria-hidden="true">
   <div class="modal-dialog modal-lg"><div class="modal-content">
@@ -25,13 +26,17 @@
             {% if patron %}pattern="{{ patron }}" inputmode="numeric" minlength="10"
               oninput="this.value = this.value.replace(/\D/g, '').slice(0, 10)"{% endif %}
             {% if campo == 'telefono' %}placeholder="09XXXXXXXX"{% endif %}
+            {% if campo in ('nombre', 'apellido') %}
+              pattern="[A-Za-zÁÉÍÓÚáéíóúÑñÜü\s]{2,60}"
+              oninput="this.value = this.value.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñÜü\s]/g, '')"
+            {% endif %}
             {% if requerido %}required{% endif %}>
         </div>
         {% endfor %}
         <div class="col-sm-6"><label class="form-label" for="{{ id }}Genero">Género</label>
           <select class="form-select" id="{{ id }}Genero" name="genero" required>
             <option value="">Seleccionar</option>
-            {% for genero in generos %}<option value="{{ genero }}">{{ genero }}</option>{% endfor %}
+            {% for genero in generos %}<option value="{{ genero }}">{{ etiquetas_genero[genero] }}</option>{% endfor %}
           </select>
         </div>
         {% for campo, etiqueta, opciones in [
@@ -111,7 +116,7 @@
           {% set formulario = 'filtrosDirectorio' %}
           <td>{{ filtro_texto(formulario, 'cedula', 'Cédula', filtros.get('cedula', '')) }}</td>
           <td>{{ filtro_texto(formulario, 'socio', 'Socio', filtros.get('socio', '')) }}</td>
-          <td>{{ filtro_select(formulario, 'genero', 'género', filtros.genero, opciones_generos) }}</td>
+          <td>{{ filtro_select(formulario, 'genero', 'género', filtros.genero, [('M', 'Masculino'), ('F', 'Femenino'), ('Otro', 'Otro')]) }}</td>
           <td>{{ filtro_texto(formulario, 'contacto', 'Teléfono o correo', filtros.get('contacto', '')) }}</td>
           <td>{{ filtro_select(formulario, 'instructor_id', 'instructor', filtros.instructor_id, opciones_instructores) }}</td>
           <td>{{ filtro_texto(formulario, 'referente', 'Referente', filtros.get('referente', '')) }}</td>
@@ -130,7 +135,7 @@
       <tbody>
         {% for s in socios %}
         <tr>
-          <td>{{ s.cedula }}</td><td>{{ s.nombre }} {{ s.apellido }}</td><td>{{ s.genero }}</td>
+          <td>{{ s.cedula }}</td><td>{{ s.nombre }} {{ s.apellido }}</td><td data-filter-value="{{ s.genero }}">{{ etiquetas_genero[s.genero] }}</td>
           <td data-filter-value="{{ s.telefono or '' }} {{ s.email or '' }}">{{ s.telefono or '—' }}{% if s.email %}<br>{{ s.email }}{% endif %}</td>
           <td data-filter-value="{{ s.instructor_id or '' }}">{{ s.instructor_nombre or '—' }}</td>
           <td data-filter-value="{{ s.referente_nombre or '' }}">{{ s.referente_nombre or '—' }}</td>

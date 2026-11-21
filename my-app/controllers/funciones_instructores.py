@@ -117,8 +117,11 @@ def _validar(datos):
     nombre = (datos.get('nombre') or '').strip()
     apellido = (datos.get('apellido') or '').strip()
     especialidad = (datos.get('especialidad') or '').strip()
-    if not (1 <= len(nombre) <= 60 and 1 <= len(apellido) <= 60 and 1 <= len(especialidad) <= 80):
-        raise ErrorInstructores('Completa el nombre, apellido y especialidad con sus longitudes permitidas.')
+    for campo, valor in (('nombre', nombre), ('apellido', apellido)):
+        if not re.fullmatch(r'[A-Za-zÁÉÍÓÚáéíóúÑñÜü\s]{2,60}', valor):
+            raise ErrorInstructores(f'El {campo} debe tener entre 2 y 60 caracteres, solo letras y espacios.')
+    if not 1 <= len(especialidad) <= 80:
+        raise ErrorInstructores('La especialidad es obligatoria y admite hasta 80 caracteres.')
     tipo_contrato = datos.get('tipo_contrato')
     if tipo_contrato not in TIPOS_CONTRATO:
         raise ErrorInstructores('Selecciona un tipo de contrato: Civil o IESS.')
