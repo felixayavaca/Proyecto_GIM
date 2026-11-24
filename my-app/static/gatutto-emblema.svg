@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" fill="none" stroke-linecap="round" stroke-linejoin="round" role="img" aria-labelledby="marca">
+  <title id="marca">Gatutto Fit · Emblema felino punk</title>
+  <path d="M7 9h64v61H7Z" stroke="#ff2a85" stroke-width="3" transform="rotate(-4 39 39)"/>
+  <path d="M6 5h64v61H6Z" fill="#0b0c0e" stroke="#b8ff00" stroke-width="2"/>
+  <path d="m30 25 2-17 7 9 6-12 4 21" fill="#ff2a85"/>
+  <path d="m24 31-1-12 11 8h10l11-8-2 13q0 12-14 13T24 31Z" stroke="#b8ff00" stroke-width="2.5"/>
+  <path d="m29 33 5 2m10 0 5-2m-12 6h4" stroke="#b8ff00" stroke-width="2.5"/>
+  <path d="m30 46-5 6 3 4m20-10 5 6-3 4" stroke="#b8ff00" stroke-width="2.5"/>
+  <path d="M16 57h46m-43-4v8m5-11v14m30-14v14m5-11v8" stroke="#b8ff00" stroke-width="2.5"/>
+</svg>

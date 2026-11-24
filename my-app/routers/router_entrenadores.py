@@ -98,7 +98,8 @@ def _guardar(operacion, mensaje, tab=None):
 def nueva_valoracion():
     def guardar():
         campos = ('fecha', 'peso_kg', 'estatura_cm', 'porcentaje_grasa', 'observaciones')
-        crear_valoracion(request.form.get('socio_id'), _instructor(), *(request.form.get(campo) for campo in campos))
+        crear_valoracion(request.form.get('socio_id'), _instructor(), *(request.form.get(campo) for campo in campos),
+                         grasa_modo=request.form.get('grasa_modo', 'manual'))
 
     return _guardar(guardar, 'Valoración registrada.', tab='valoraciones')
 

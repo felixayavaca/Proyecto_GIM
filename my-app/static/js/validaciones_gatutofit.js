@@ -28,6 +28,21 @@
     } else if (isPersonName(field)) {
       field.value = field.value.replace(letters, '');
     } else if (numeric(field)) {
+      if (field.dataset.decimal === 'true') {
+        const start = field.selectionStart;
+        const before = field.value;
+        const clean = text => {
+          const [whole, ...fraction] = text.replace(/[^\d.]/g, '').split('.');
+          return whole + (fraction.length ? '.' + fraction.join('') : '');
+        };
+        const after = clean(before);
+        if (before !== after) {
+          field.value = after;
+          const caret = clean(before.slice(0, start)).length;
+          field.setSelectionRange(caret, caret);
+        }
+        return;
+      }
       if (isFilter(field) || field.step === '1' || !field.step) {
         field.value = field.value.replace(/\D/g, '');
       } else {
@@ -50,6 +65,12 @@
   function message(field) {
     const value = field.value.trim();
     if (!value && !field.required && !field.validity.badInput) return '';
+    if (field.dataset.decimal === 'true') {
+      if (!/^\d+(\.\d{1,2})?$/.test(value)) return 'Ingresa un número con hasta dos decimales';
+      if (Number(value) < Number(field.min) || Number(value) > Number(field.max)) {
+        return 'Ingresa un valor entre ' + field.min + ' y ' + field.max;
+      }
+    }
     if (field.name === 'cedula') {
       if (!/^\d{10}$/.test(value)) return 'La cédula debe tener 10 dígitos';
       if (!cedulaValida(value)) return 'Cédula ecuatoriana no válida';
@@ -112,7 +133,14 @@
       field.pattern = '[0-9]*';
     }
     if (!isFilter(field) && field.name === 'peso_kg') { field.min = '25'; field.max = '300'; }
-    if (!isFilter(field) && field.name === 'estatura_cm') { field.min = '100'; field.max = '250'; }
+    if (!isFilter(field) && field.name === 'estatura_cm') { field.min = '100'; field.max = '230'; }
+    if (!isFilter(field) && field.name === 'porcentaje_grasa') { field.min = '3'; field.max = '60'; }
+    if (!isFilter(field) && ['peso_kg', 'estatura_cm', 'porcentaje_grasa'].includes(field.name)) {
+      field.type = 'text';
+      field.inputMode = 'decimal';
+      field.dataset.numeric = 'true';
+      field.dataset.decimal = 'true';
+    }
     field.addEventListener('blur', () => validate(field));
     field.addEventListener('change', () => validate(field));
     if (numeric(field)) {

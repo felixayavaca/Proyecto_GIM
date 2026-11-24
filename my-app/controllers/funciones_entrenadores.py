@@ -106,7 +106,7 @@ def listar_rutinas(socio_id=None, dia_semana=None, *, grupo_muscular=None, instr
 
 def listar_socios_entrenamiento():
     with _cursor() as cursor:
-        cursor.execute('SELECT id, cedula, nombre, apellido FROM socios ORDER BY apellido, nombre, id', ())
+        cursor.execute('SELECT id, cedula, nombre, apellido, genero, fecha_nacimiento FROM socios ORDER BY apellido, nombre, id', ())
         return cursor.fetchall()
 
 
@@ -138,7 +138,19 @@ def _texto(valor, limite, nombre, requerido=False):
     return texto or None
 
 
-def crear_valoracion(socio_id, instructor_id, fecha, peso_kg, estatura_cm, porcentaje_grasa, observaciones):
+def estimar_grasa(peso, estatura, nacimiento, genero, fecha):
+    if not nacimiento or genero not in ('M', 'F'):
+        return None
+    edad = fecha.year - nacimiento.year - ((fecha.month, fecha.day) < (nacimiento.month, nacimiento.day))
+    if edad < 18:
+        return None
+    imc = peso / ((estatura / 100) ** 2)
+    grasa = Decimal('1.20') * imc + Decimal('0.23') * edad - Decimal('10.8') * (genero == 'M') - Decimal('5.4')
+    return grasa.quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)
+
+
+def crear_valoracion(socio_id, instructor_id, fecha, peso_kg, estatura_cm, porcentaje_grasa, observaciones,
+                     grasa_modo='manual'):
     socio_id, instructor_id = _id(socio_id), _id(instructor_id)
     try:
         fecha = date.fromisoformat(str(fecha))
@@ -146,14 +158,28 @@ def crear_valoracion(socio_id, instructor_id, fecha, peso_kg, estatura_cm, porce
             raise ValueError
     except ValueError as exc:
         raise ValueError('Indica una fecha de valoración válida.') from exc
-    peso = _medida(peso_kg, Decimal('0.01'), Decimal('999.99'), 'el peso')
-    estatura = _medida(estatura_cm, Decimal('0.01'), Decimal('999.99'), 'la estatura')
-    grasa = None if porcentaje_grasa in (None, '') else _medida(porcentaje_grasa, 0, 100, 'el porcentaje de grasa')
+    peso = _medida(peso_kg, 25, 300, 'el peso')
+    estatura = _medida(estatura_cm, 100, 230, 'la estatura')
+    if grasa_modo not in ('auto', 'manual'):
+        raise ValueError('Selecciona un modo de grasa válido.')
+    grasa = None
+    if grasa_modo == 'manual' and porcentaje_grasa not in (None, ''):
+        grasa = _medida(porcentaje_grasa, 3, 60, 'el porcentaje de grasa')
     imc = (peso / ((estatura / 100) ** 2)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
     if not Decimal('0.01') <= imc <= Decimal('999.99'):
         raise ValueError('El peso y la estatura generan un IMC fuera del rango permitido.')
     observaciones = _texto(observaciones, 10000, 'las observaciones')
     with _cursor(escritura=True) as cursor:
+        if grasa_modo == 'auto' or porcentaje_grasa in (None, ''):
+            cursor.execute('SELECT fecha_nacimiento, genero FROM socios WHERE id = %s', (socio_id,))
+            socio = cursor.fetchone()
+            if socio is None:
+                raise ValueError('El socio no existe.')
+            estimacion = estimar_grasa(peso, estatura, socio['fecha_nacimiento'], socio['genero'], fecha)
+            if estimacion is not None:
+                if not 3 <= estimacion <= 60:
+                    raise ValueError('La estimación de grasa queda fuera de 3–60 %. Ingresa una medición manual.')
+                grasa = estimacion
         cursor.execute(
             """INSERT INTO valoraciones_fisicas
                (socio_id, instructor_id, fecha, peso_kg, estatura_cm, imc, porcentaje_grasa, observaciones)

@@ -22,7 +22,7 @@
       <p class="mb-2">Indicadores operativos, ingresos y asistencia del gimnasio</p>
       {% if resumen %}<p class="mb-0 text-white-50">{{ filtros.fecha_inicio }} al {{ filtros.fecha_fin }} · {{ 'Todas las categorías' if not filtros.categoria else ('Básico' if filtros.categoria == 'Basico' else filtros.categoria) }}</p>{% endif %}
     </div>
-    <img src="{{ url_for('static', filename='gatutofit.svg') }}" alt="GatutoFit · Fitness Center" width="220" height="58">
+    <img src="{{ url_for('static', filename='gatutofit.svg') }}" alt="Gatutto Fit · Fitness Center" width="220" height="58">
   </header>
 
   <form method="get" action="{{ url_for('home.dashboard') }}" class="gim-surface gim-filter p-3 mb-4 d-flex flex-wrap align-items-end gap-3">
@@ -48,7 +48,7 @@
       <button type="submit" class="btn btn-dark">Filtrar</button>
       <a class="btn btn-outline-secondary" href="{{ url_for('home.dashboard') }}">Limpiar</a>
       {% if resumen and 'reportes.exportar' in session['usuario']['permisos'] %}
-      <a class="btn btn-outline-success" href="{{ url_for('home.exportar', **filtros) }}">Exportar Excel</a>
+      <a class="btn btn-punk-export" href="{{ url_for('home.exportar', **filtros) }}"><i class="bi bi-file-earmark-excel-fill me-1" aria-hidden="true"></i>Exportar Excel</a>
       {% endif %}
     </div>
   </form>

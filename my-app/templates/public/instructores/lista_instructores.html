@@ -93,7 +93,7 @@
 ] %}
 <div class="d-flex flex-wrap align-items-end gap-2 mb-3">
   {% if 'reportes.exportar' in session['usuario']['permisos'] %}
-    <a class="btn btn-outline-success" data-export-filters href="{{ url_for('instructores.exportar', **filtros) }}">Exportar Excel</a>
+    <a class="btn btn-punk-export" data-export-filters href="{{ url_for('instructores.exportar', **filtros) }}"><i class="bi bi-file-earmark-excel-fill me-1" aria-hidden="true"></i>Exportar Excel</a>
   {% endif %}
   {% if gestionar %}
     <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#nuevoInstructor">Nuevo instructor</button>

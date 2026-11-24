@@ -24,7 +24,8 @@
   <select class="form-select" id="{{ id }}Socio" name="socio_id" required>
     <option value="">Selecciona un socio</option>
     {% for socio in socios %}
-    <option value="{{ socio.id }}" {% if filtros.get('rutina_socio_id' if id == 'rutina' else 'valoracion_socio_id') == socio.id|string %}selected{% endif %}>
+    <option value="{{ socio.id }}" data-genero="{{ socio.genero }}" data-nacimiento="{{ socio.fecha_nacimiento or '' }}"
+      {% if filtros.get('rutina_socio_id' if id == 'rutina' else 'valoracion_socio_id') == socio.id|string %}selected{% endif %}>
       {{ socio.cedula }} · {{ socio.nombre }} {{ socio.apellido }}
     </option>
     {% endfor %}
@@ -61,7 +62,7 @@
 {% set gestionar_valoraciones = 'valoraciones.gestionar' in permisos %}
 <div class="d-flex flex-wrap align-items-end gap-2 mb-3">
   {% if 'reportes.exportar' in permisos %}
-    <a class="btn btn-outline-success" data-export-filters href="{{ url_for('entrenadores.exportar', **filtros) }}">Exportar Excel</a>
+    <a class="btn btn-punk-export" data-export-filters href="{{ url_for('entrenadores.exportar', **filtros) }}"><i class="bi bi-file-earmark-excel-fill me-1" aria-hidden="true"></i>Exportar Excel</a>
   {% endif %}
 </div>
 {% if (gestionar_rutinas or gestionar_valoraciones) and not instructores %}
@@ -161,14 +162,16 @@
         </div>
         {% for campo, etiqueta, minimo, maximo, requerido in [
           ('peso_kg', 'Peso (kg)', '25', '300', true),
-          ('estatura_cm', 'Estatura (cm)', '100', '250', true),
-          ('porcentaje_grasa', 'Grasa (%)', '0', '100', false)
+          ('estatura_cm', 'Estatura (cm)', '100', '230', true),
+          ('porcentaje_grasa', 'Grasa estimada (%)', '3', '60', false)
         ] %}
         <div class="col-md-3">
           <label class="form-label" for="{{ campo }}">{{ etiqueta }}</label>
           <input class="form-control" id="{{ campo }}" name="{{ campo }}" placeholder="{{ {'peso_kg': 'Ej: 72.5', 'estatura_cm': 'Ej: 175', 'porcentaje_grasa': 'Ej: 18.5'}[campo] }}" type="number" min="{{ minimo }}" max="{{ maximo }}" step="0.01" {% if requerido %}required{% endif %}>
         </div>
         {% endfor %}
+        <input type="hidden" name="grasa_modo" id="grasaModo" value="auto">
+        <div class="col-12 small text-secondary" id="grasaAyuda" role="status">Calculado por IMC/Edad/Género · Editable</div>
         <div class="col-12">
           <label class="form-label" for="observaciones">Observaciones</label>
           <textarea class="form-control" id="observaciones" name="observaciones" rows="3" maxlength="10000"></textarea>
@@ -206,5 +209,6 @@
     </table></div>
   </section>
 </div>
+<script src="{{ url_for('static', filename='js/valoracion_grasa.js') }}" defer></script>
 {% endif %}
 {% endblock %}

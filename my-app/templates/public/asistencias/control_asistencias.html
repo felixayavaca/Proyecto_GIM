@@ -25,7 +25,7 @@
 
 <div class="d-flex flex-wrap align-items-end gap-2 mb-3">
   {% if 'reportes.exportar' in permisos %}
-    <a class="btn btn-outline-success" data-export-filters href="{{ url_for('asistencias.exportar', **filtros) }}">Exportar Excel</a>
+    <a class="btn btn-punk-export" data-export-filters href="{{ url_for('asistencias.exportar', **filtros) }}"><i class="bi bi-file-earmark-excel-fill me-1" aria-hidden="true"></i>Exportar Excel</a>
   {% endif %}
 </div>
 

@@ -146,7 +146,7 @@ def listar_pagos(q=None, estado=None, genero=None, instructor_id=None, *,
                       p.nombre AS plan_nombre, m.fecha_inicio, m.fecha_fin, m.estado, m.fecha_pago,
                       m.metodo_pago, m.precio_pagado,
                       DATEDIFF(m.fecha_fin, m.fecha_inicio) AS duracion_dias,
-                      DATEDIFF(DATE(m.fecha_pago), s.fecha_registro) AS antiguedad
+                      GREATEST(0, DATEDIFF(DATE(m.fecha_pago), s.fecha_registro)) AS antiguedad
                FROM membresias m JOIN socios s ON s.id = m.socio_id JOIN planes p ON p.id = m.plan_id
             """ + _FILTROS + """
                 AND CONCAT_WS(' ', s.nombre, s.apellido) LIKE %s ESCAPE '!'
@@ -224,7 +224,7 @@ def _validar(datos, socio_id=None):
 
 
 def _bloquear_socio(cursor, socio_id):
-    cursor.execute('SELECT activo FROM socios WHERE id = %s FOR UPDATE', (socio_id,))
+    cursor.execute('SELECT activo, fecha_registro FROM socios WHERE id = %s FOR UPDATE', (socio_id,))
     socio = cursor.fetchone()
     if socio is None:
         raise ValueError('El socio no existe.')
@@ -285,8 +285,14 @@ def registrar_pago(socio_id, datos):
     except ValueError as exc:
         raise ValueError('Indica fechas válidas en la hora local del gimnasio.') from exc
     with _cursor(escritura=True) as cursor:
-        if not _bloquear_socio(cursor, socio_id)['activo']:
+        socio = _bloquear_socio(cursor, socio_id)
+        if not socio['activo']:
             raise ValueError('Activa al socio antes de asignarle una membresía.')
+        cursor.execute('SELECT CURDATE() AS hoy', ())
+        hoy = cursor.fetchone()['hoy']
+        fecha_pago = pago.date() if pago else hoy
+        if fecha_pago < socio['fecha_registro']:
+            raise ValueError('La fecha de pago no puede ser anterior al registro del socio.')
         cursor.execute('SELECT duracion_dias FROM planes WHERE id = %s AND activo = %s FOR SHARE', (plan_id, 1))
         plan = cursor.fetchone()
         if plan is None:

@@ -92,7 +92,7 @@
 {% if disponible %}
 <div class="d-flex flex-wrap align-items-end gap-2 mb-3">
   {% if 'reportes.exportar' in session['usuario']['permisos'] %}
-    <a class="btn btn-outline-success" data-export-filters href="{{ url_for('socios.exportar', **filtros_combinados) }}">Exportar Excel</a>
+    <a class="btn btn-punk-export" data-export-filters href="{{ url_for('socios.exportar', **filtros_combinados) }}"><i class="bi bi-file-earmark-excel-fill me-1" aria-hidden="true"></i>Exportar Excel</a>
   {% endif %}
 </div>
 
@@ -168,7 +168,7 @@
             {% endif %}
             {% if registrar and s.activo and planes %}
             <button type="button" class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#pagarSocio"
-              data-socio="{{ s.nombre }} {{ s.apellido }}" data-url="{{ url_for('socios.pagar', socio_id=s.id, **filtros_combinados) }}">Renovar / Pagar</button>
+              data-registro="{{ s.fecha_registro }}" data-socio="{{ s.nombre }} {{ s.apellido }}" data-url="{{ url_for('socios.pagar', socio_id=s.id, **filtros_combinados) }}">Renovar / Pagar</button>
             {% endif %}
           </div></td>
         </tr>
@@ -271,6 +271,7 @@
     const form = this.querySelector('form');
     form.reset();
     form.action = evento.relatedTarget.dataset.url;
+    document.getElementById('fechaPago').min = evento.relatedTarget.dataset.registro + 'T00:00';
     document.getElementById('socioPago').textContent = evento.relatedTarget.dataset.socio;
   });
   document.getElementById('planPago')?.addEventListener('change', function () {
