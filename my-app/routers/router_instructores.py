@@ -25,11 +25,14 @@ def _filtros():
 def lista():
     permisos = session['usuario']['permisos']
     gestionar = GESTIONAR in permisos
-    if not gestionar and 'socios.ver' not in permisos:
+    rol = session['usuario'].get('rol_nombre')
+    personal = rol in ('Entrenador', 'Nutricionista', 'Fisioterapeuta')
+    if not gestionar and not personal:
         abort(403)
     filtros = _filtros()
     try:
-        instructores = listar_instructores(**filtros)
+        usuario_id = None if gestionar else session['usuario']['id']
+        instructores = listar_instructores(usuario_id=usuario_id, **filtros)
         usuarios = listar_usuarios_entrenadores() if gestionar else []
     except ValueError as exc:
         abort(400, description=str(exc))

@@ -51,7 +51,7 @@ def _id(valor, opcional=False):
     raise ValueError('Selecciona un registro válido.')
 
 
-def listar_valoraciones(socio_id=None, *, fecha=None, instructor_id=None, clasificacion=None):
+def listar_valoraciones(socio_id=None, *, fecha=None, instructor_id=None, clasificacion=None, alcance_instructor_id=None):
     socio_id = _id(socio_id, opcional=True)
     instructor_id = _id(instructor_id, opcional=True)
     try:
@@ -69,16 +69,18 @@ def listar_valoraciones(socio_id=None, *, fecha=None, instructor_id=None, clasif
                       CONCAT_WS(' ', i.nombre, i.apellido) AS instructor_nombre
                FROM valoraciones_fisicas v JOIN socios s ON s.id = v.socio_id
                JOIN instructores i ON i.id = v.instructor_id
-               WHERE (%s IS NULL OR v.socio_id = %s) AND (%s IS NULL OR v.fecha = %s)
+               WHERE (%s IS NULL OR v.instructor_id = %s)
+                 AND (%s IS NULL OR v.socio_id = %s) AND (%s IS NULL OR v.fecha = %s)
                  AND (%s IS NULL OR v.instructor_id = %s)
                  AND (%s IS NULL OR v.imc >= %s) AND (%s IS NULL OR v.imc < %s)
                ORDER BY v.fecha DESC, v.id DESC""",
-            (socio_id, socio_id, fecha, fecha, instructor_id, instructor_id, minimo, minimo, maximo, maximo),
+            (alcance_instructor_id, alcance_instructor_id, socio_id, socio_id, fecha, fecha,
+             instructor_id, instructor_id, minimo, minimo, maximo, maximo),
         )
         return cursor.fetchall()
 
 
-def listar_rutinas(socio_id=None, dia_semana=None, *, grupo_muscular=None, instructor_id=None, activa=None):
+def listar_rutinas(socio_id=None, dia_semana=None, *, grupo_muscular=None, instructor_id=None, activa=None, alcance_instructor_id=None):
     socio_id = _id(socio_id, opcional=True)
     instructor_id = _id(instructor_id, opcional=True)
     activa = '' if activa is None else str(activa)
@@ -95,18 +97,25 @@ def listar_rutinas(socio_id=None, dia_semana=None, *, grupo_muscular=None, instr
                       CONCAT_WS(' ', i.nombre, i.apellido) AS instructor_nombre
                FROM rutinas_ejercicios r JOIN socios s ON s.id = r.socio_id
                JOIN instructores i ON i.id = r.instructor_id
-               WHERE (%s IS NULL OR r.socio_id = %s) AND (%s IS NULL OR r.dia_semana = %s)
+               WHERE (%s IS NULL OR r.instructor_id = %s)
+                 AND (%s IS NULL OR r.socio_id = %s) AND (%s IS NULL OR r.dia_semana = %s)
                  AND r.grupo_muscular LIKE %s ESCAPE '!'
                  AND (%s IS NULL OR r.instructor_id = %s) AND (%s IS NULL OR r.activa = %s)
                ORDER BY s.apellido, s.nombre, s.id, r.dia_semana, r.id""",
-            (socio_id, socio_id, dia_semana, dia_semana, grupo, instructor_id, instructor_id, estado, estado),
+            (alcance_instructor_id, alcance_instructor_id, socio_id, socio_id, dia_semana, dia_semana,
+             grupo, instructor_id, instructor_id, estado, estado),
         )
         return cursor.fetchall()
 
 
-def listar_socios_entrenamiento():
+def listar_socios_entrenamiento(instructor_id=None):
     with _cursor() as cursor:
-        cursor.execute('SELECT id, cedula, nombre, apellido FROM socios ORDER BY apellido, nombre, id', ())
+        cursor.execute(
+            """SELECT id, cedula, nombre, apellido FROM socios
+               WHERE (%s IS NULL OR instructor_id = %s)
+               ORDER BY apellido, nombre, id""",
+            (instructor_id, instructor_id),
+        )
         return cursor.fetchall()
 
 

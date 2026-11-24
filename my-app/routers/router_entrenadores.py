@@ -30,14 +30,14 @@ def _filtros():
     return filtros
 
 
-def _datos(filtros):
+def _datos(filtros, alcance_instructor_id=None):
     try:
         rutinas = listar_rutinas(**{
             campo.removeprefix('rutina_'): filtros.get(campo) for campo in FILTROS_RUTINAS
-        })
+        } | {'alcance_instructor_id': alcance_instructor_id})
         valoraciones = listar_valoraciones(**{
             campo.removeprefix('valoracion_'): filtros.get(campo) for campo in FILTROS_VALORACIONES
-        })
+        } | {'alcance_instructor_id': alcance_instructor_id})
         return rutinas, valoraciones
     except ValueError as exc:
         abort(400, description=str(exc))
@@ -48,16 +48,22 @@ def _datos(filtros):
 def panel():
     usuario = session['usuario']
     permisos = set(usuario['permisos'])
-    if not permisos.intersection((RUTINAS, VALORACIONES, 'socios.ver')):
+    if not permisos.intersection((RUTINAS, VALORACIONES)):
         abort(403)
     filtros = _filtros()
     entrenador = usuario.get('rol_nombre') == 'Entrenador'
     puede_crear = permisos.intersection((RUTINAS, VALORACIONES))
     try:
-        rutinas, valoraciones = _datos(filtros)
-        socios = listar_socios_entrenamiento()
+        personal = usuario.get('rol_nombre') in ('Entrenador', 'Nutricionista', 'Fisioterapeuta')
+        propios = listar_instructores_entrenamiento(usuario['id']) if personal else []
+        alcance_instructor_id = propios[0]['id'] if propios else None
+        if personal and alcance_instructor_id is None:
+            rutinas, valoraciones = [], []
+        else:
+            rutinas, valoraciones = _datos(filtros, alcance_instructor_id if personal else None)
+        socios = listar_socios_entrenamiento(alcance_instructor_id if personal else None)
         instructores_filtro = listar_instructores_entrenamiento()
-        instructores = (listar_instructores_entrenamiento(usuario['id']) if entrenador else instructores_filtro) if puede_crear else []
+        instructores = (propios if personal else instructores_filtro) if puede_crear else []
     except ErrorEntrenadores as exc:
         flash(str(exc), 'danger')
         return render_template('entrenadores/panel_entrenador.html', disponible=False), 503
@@ -69,7 +75,7 @@ def panel():
         opciones_dias=[(dia, dia) for dia in DIAS],
         filtros_rutinas={campo: filtros[campo] for campo in FILTROS_RUTINAS if campo in filtros},
         filtros_valoraciones={campo: filtros[campo] for campo in FILTROS_VALORACIONES if campo in filtros},
-        mostrar_valoraciones=request.args.get('tab') == 'valoraciones',
+        mostrar_valoraciones=request.args.get('tab') == 'valoraciones' or usuario.get('rol_nombre') in ('Nutricionista', 'Fisioterapeuta'),
     )
 
 

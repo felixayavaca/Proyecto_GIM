@@ -38,7 +38,7 @@ def _cursor(escritura=False):
         raise ErrorInstructores('No se pudo completar la operación de instructores.') from exc
 
 
-def listar_instructores(q=None, estado=None, *, cedula=None, instructor=None, especialidad=None, socios_min=None,
+def listar_instructores(q=None, estado=None, *, usuario_id=None, cedula=None, instructor=None, especialidad=None, socios_min=None,
                         telefono=None, tipo_contrato=None, direccion=None, contacto_emergencia=None):
     q = (q or '').strip()
     estado = '' if estado is None else str(estado)
@@ -71,7 +71,8 @@ def listar_instructores(q=None, estado=None, *, cedula=None, instructor=None, es
                    SELECT s.instructor_id, COUNT(s.id) AS total FROM socios s
                    GROUP BY s.instructor_id
                ) asignados ON asignados.instructor_id = i.id
-               WHERE (%s = '' OR CONCAT_WS(' ', i.nombre, i.apellido) LIKE %s ESCAPE '!'
+               WHERE (%s IS NULL OR i.usuario_id = %s)
+                 AND (%s = '' OR CONCAT_WS(' ', i.nombre, i.apellido) LIKE %s ESCAPE '!'
                       OR i.cedula LIKE %s ESCAPE '!' OR i.especialidad LIKE %s ESCAPE '!')
                  AND (%s IS NULL OR i.activo = %s)
                  AND i.cedula LIKE %s ESCAPE '!'
@@ -83,7 +84,7 @@ def listar_instructores(q=None, estado=None, *, cedula=None, instructor=None, es
                  AND i.contacto_emergencia LIKE %s ESCAPE '!'
                  AND COALESCE(asignados.total, 0) >= %s
                ORDER BY i.apellido, i.nombre, i.id""",
-            (q, general, general, general, estado, estado, patron(cedula), patron(instructor),
+            (usuario_id, usuario_id, q, general, general, general, estado, estado, patron(cedula), patron(instructor),
              patron(especialidad), patron(telefono), tipo_contrato, tipo_contrato,
              patron(direccion), patron(contacto_emergencia), minimo),
         )

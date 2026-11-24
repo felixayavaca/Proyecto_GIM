@@ -1,15 +1,17 @@
 {% set permisos = session.get('usuario', {}).get('permisos', []) %}
 <aside id="panelSidebar" class="panel-sidebar bg-body-tertiary">
 <nav class="nav nav-pills flex-column gap-1" aria-label="Menú principal">
+  {% set rol = session.get('usuario', {}).get('rol_nombre', '') %}
   {% for ruta, etiqueta, icono, permitidos in [
     ('/dashboard', 'Panel General', 'speedometer2', ['reportes.ver']),
     ('/socios', 'Socios y Pagos', 'people-fill', ['socios.ver']),
-    ('/instructores', 'Instructores', 'person-badge-fill', ['instructores.gestionar', 'socios.ver']),
+    ('/instructores', 'Mi Contrato', 'person-badge-fill', ['instructores.gestionar']),
     ('/entrenadores', 'Entrenamiento y Rutinas', 'activity', ['rutinas.gestionar', 'valoraciones.gestionar', 'socios.ver']),
     ('/planes', 'Planes', 'award-fill', ['planes.ver']),
     ('/asistencias', 'Asistencias', 'calendar-check-fill', ['asistencias.ver', 'asistencias.registrar'])
   ] %}
-    {% if permitidos | select('in', permisos) | list %}
+    {% set personal_instructor = ruta == '/instructores' and rol in ['Entrenador', 'Nutricionista', 'Fisioterapeuta'] %}
+    {% if (permitidos | select('in', permisos) | list) or personal_instructor %}
       <a class="nav-link d-flex align-items-start {% if request.path == ruta %}active{% endif %}" href="{{ ruta }}" {% if request.path == ruta %}aria-current="page"{% endif %}>
         <i class="bi bi-{{ icono }} me-2" aria-hidden="true"></i><span>{{ etiqueta }}</span>
       </a>

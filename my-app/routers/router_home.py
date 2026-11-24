@@ -21,7 +21,7 @@ def _metricas():
 
 
 @home_bp.get('/dashboard')
-@login_requerido
+@requiere_permiso('reportes.ver')
 def dashboard():
     filtros = {campo: request.args.get(campo, '') for campo in ('fecha_inicio', 'fecha_fin', 'categoria', 'socio_id')}
     socios = []

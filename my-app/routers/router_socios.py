@@ -2,6 +2,7 @@ from collections import defaultdict
 
 from flask import Blueprint, abort, flash, redirect, render_template, request, session, url_for
 from controllers.exportar_excel import generar_excel
+from conexion.conexionBD import connectionBD
 from controllers.funciones_planes import ErrorPlanes, listar_planes_activos
 from controllers.funciones_socios import (
     GENEROS, METODOS_PAGO, ErrorSocios, actualizar_socio, cambiar_estado_socio,
@@ -30,10 +31,24 @@ def lista():
     filtros = _filtros()
     filtros_pagos = _filtros_pagos()
     permisos = session['usuario']['permisos']
+    rol = session['usuario'].get('rol_nombre')
+    personal = rol in ('Entrenador', 'Nutricionista', 'Fisioterapeuta')
     gestionar = 'socios.gestionar' in permisos
     registrar = 'membresias.gestionar' in permisos
     ver_pagos = registrar or 'membresias.ver' in permisos
     try:
+        if personal:
+            with connectionBD() as conexion:
+                with conexion.cursor(dictionary=True) as cursor:
+                    cursor.execute(
+                        'SELECT id FROM instructores WHERE usuario_id = %s LIMIT 1',
+                        (session['usuario']['id'],),
+                    )
+                    instructor = cursor.fetchone()
+            if instructor:
+                filtros['instructor_id'] = str(instructor['id'])
+            else:
+                filtros['instructor_id'] = '0'
         socios = listar_socios(**filtros)
         referentes, instructores = listar_opciones_socios()
         pagos = listar_pagos(**filtros_pagos) if ver_pagos else []
